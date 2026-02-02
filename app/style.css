@@ -3,9 +3,16 @@
   --glass: rgba(124, 124, 124, 0.85);
   --accent: #007AFF;
   --text-dim: rgba(0, 0, 0, 0.3);
-  /* Escalonamento Dinâmico */
-  --base-width: 390; /* iPhone 13/14 base */
-  --scale-factor: clamp(0.8, calc(100vw / var(--base-width)), 1.2);
+  
+  /* Safe Area Fallbacks */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+
+  /* Escalonamento Dinâmico Inteligente */
+  --base-width: 390;
+  --scale-factor: clamp(0.85, calc(100vw / var(--base-width)), 1.15);
 }
 
 * { 
@@ -59,13 +66,13 @@ html, body {
 
 /* Toolbar iOS 26 - Floating Pill */
 #toolbar {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: 85%;
+  bottom: calc(20px + var(--sab)); /* Sempre no fundo, respeitando a safe area */
   transform: translateX(-50%) scale(var(--scale-factor));
   height: 62px;
   min-width: 320px;
-  max-width: 95%;
+  max-width: 90%;
   background: var(--glass);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
@@ -77,6 +84,8 @@ html, body {
   gap: 6px;
   z-index: 1000;
   border: 0.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  transition: bottom 0.3s ease, transform 0.3s ease;
 }
 
 .tool-item {
@@ -149,25 +158,26 @@ html, body {
 
 /* Painéis (Setup e Treino) */
 .panel {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: 30%;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--scale-factor));
   width: 380px;
-  max-width: 90%;
-  max-height: 80vh;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 28px;
+  max-width: 92%;
+  max-height: 85vh;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 32px;
   padding: 0;
   z-index: 2000;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-  border: 0.5px solid rgba(0,0,0,0.08);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.25);
+  border: 0.5px solid rgba(255,255,255,0.3);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   touch-action: pan-y;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .panel.hidden { display: none !important; }

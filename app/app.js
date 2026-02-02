@@ -88,7 +88,8 @@
     // Pequeno delay para garantir que o navegador atualizou as dimensões reais (especialmente no iOS)
     setTimeout(() => {
       W = window.innerWidth; 
-      H = window.innerHeight; 
+      // Usar visualViewport se disponível para evitar problemas com teclado e barras de sistema
+      H = window.visualViewport ? window.visualViewport.height : window.innerHeight; 
       DPR = window.devicePixelRatio || 1;
       
       board.width = W * DPR; 
@@ -140,15 +141,32 @@
       const el = document.getElementById(id);
       const c = cfg[panels[id]];
       if (el && c) {
-        if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
-        el.style.left = (c.x * W / 100) + "px";
-        el.style.top = (c.y * H / 100) + "px";
-        
-        // Aplicar escala do usuário multiplicada pelo fator dinâmico
-        const finalScale = c.s * dynamicScale;
-        el.style.transform = `translateX(-50%) scale(${finalScale})`;
-        
-        if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
+        if (id === "toolbar") {
+          el.style.display = c.visible ? "flex" : "none";
+          // Toolbar agora é fixa no CSS, mas permitimos ajuste fino de Y se o usuário quiser
+          // Porém, por padrão, ela deve ficar no fundo.
+          // Se c.y for o padrão (85 ou similar), deixamos o CSS cuidar disso.
+          if (c.y > 80) {
+            el.style.top = "auto";
+          } else {
+            el.style.top = (c.y * H / 100) + "px";
+          }
+          el.style.left = (c.x * W / 100) + "px";
+          el.style.transform = `translateX(-50%) scale(${c.s * dynamicScale})`;
+        } else {
+          // Painéis agora são centralizados via CSS, mas respeitam o X/Y do config se alterados
+          // Se X=50 e Y=30 (padrão), usamos a centralização nativa
+          if (c.x === 50 && (c.y === 30 || c.y === 50)) {
+            el.style.left = "50%";
+            el.style.top = "50%";
+            el.style.transform = `translate(-50%, -50%) scale(${c.s * dynamicScale})`;
+          } else {
+            el.style.left = (c.x * W / 100) + "px";
+            el.style.top = (c.y * H / 100) + "px";
+            el.style.transform = `translateX(-50%) scale(${c.s * dynamicScale})`;
+          }
+          el.style.background = `rgba(255, 255, 255, ${c.o})`;
+        }
       }
     });
 
