@@ -111,9 +111,10 @@
 
   const applyCfg = () => {
     visor.style.display = cfg.visor.visible ? "block" : "none";
+    const dynamicScale = Math.min(Math.max(W / 390, 0.8), 1.2);
     visor.style.left = (cfg.visor.x * W / 100) + "px";
     visor.style.top = (cfg.visor.y * H / 100) + "px";
-    visor.style.fontSize = cfg.visor.s + "px";
+    visor.style.fontSize = (cfg.visor.s * dynamicScale) + "px";
     visor.style.lineHeight = cfg.visor.lh;
     
     if (mode === "setup" || mode === "train" || mode === "cards") {
@@ -129,11 +130,12 @@
     footer.style.display = cfg.footer.visible ? "block" : "none";
     footer.style.left = (cfg.footer.x * W / 100) + "px";
     footer.style.top = (cfg.footer.y * H / 100) + "px";
-    footer.style.fontSize = cfg.footer.s + "px";
+    footer.style.fontSize = (cfg.footer.s * dynamicScale) + "px";
     footer.style.opacity = cfg.footer.o;
     if (mode !== "swipe") footer.textContent = cfg.footer.text;
 
     const panels = { "toolbar": "toolbar", "setupPanel": "panelSetup", "trainPanel": "panelTrain", "panelCards": "panelCards" };
+    
     Object.keys(panels).forEach(id => {
       const el = document.getElementById(id);
       const c = cfg[panels[id]];
@@ -141,7 +143,11 @@
         if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
         el.style.left = (c.x * W / 100) + "px";
         el.style.top = (c.y * H / 100) + "px";
-        el.style.transform = `translateX(-50%) scale(${c.s})`;
+        
+        // Aplicar escala do usuário multiplicada pelo fator dinâmico
+        const finalScale = c.s * dynamicScale;
+        el.style.transform = `translateX(-50%) scale(${finalScale})`;
+        
         if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
       }
     });
@@ -194,9 +200,8 @@
       const p = getPt(e); e.preventDefault();
       if (mode === "swipe") { swipeData.start = p; return; }
       if (mode === "train") {
-        const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
-        const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
-        if (p.x < rx || p.x > rx + rw || p.y < ry || p.y > ry + rh) return;
+        // No modo treino, permitimos desenhar em qualquer lugar da tela que não seja o painel
+        // A restrição anterior impedia o desenho se o usuário começasse fora da caixa do número
       }
       currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
     };
@@ -403,7 +408,12 @@
   };
 
   window.openTrainPanel = () => { window.setTarget('panelTrain'); closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum || 1); applyCfg(); };
-  window.toggleTrain = () => { mode = "draw"; trainPanel.classList.add("hidden"); applyCfg(); render(); };
+  window.toggleTrain = () => { 
+    mode = "draw"; 
+    trainPanel.classList.add("hidden"); 
+    applyCfg(); 
+    render(); 
+  };
   window.setAdjustMode = (m) => {
     adjustMode = m;
     document.getElementById("modeNumBtn").classList.toggle("active", m === 'number');

@@ -3,6 +3,9 @@
   --glass: rgba(124, 124, 124, 0.85);
   --accent: #007AFF;
   --text-dim: rgba(0, 0, 0, 0.3);
+  /* Escalonamento Dinâmico */
+  --base-width: 390; /* iPhone 13/14 base */
+  --scale-factor: clamp(0.8, calc(100vw / var(--base-width)), 1.2);
 }
 
 * { 
@@ -59,7 +62,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 85%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--scale-factor));
   height: 62px;
   min-width: 320px;
   max-width: 95%;
