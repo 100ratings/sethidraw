@@ -10,19 +10,33 @@
   const trainNumEl = document.getElementById("trainNumDisplay");
   const cardInputDisplay = document.getElementById("cardInputDisplay");
   const cardsAdjustControls = document.getElementById("cardsAdjustControls");
+  const peekDurationDisplay = document.getElementById("peekDurationDisplay");
 
   let W = window.innerWidth, H = window.innerHeight, DPR = window.devicePixelRatio || 1;
-  let mode = "draw", color = "#111111", strokes = [], currentStroke = null;
-  let swipeData = { start: null, arrows: [] }, cardInputData = { rank: "", suit: "", digits: "" };
-  let tapCounts = { red: 0, yellow: 0 }, lastTapTimes = { red: 0, yellow: 0 };
-  let trainNum = 1, adjTarget = "visor", lastResult = "", adjustMode = "number", isCardsAdjustMode = false, peekTimer = null;
+
+  let mode = "draw"; 
+  let color = "#111111";
+  let strokes = [];
+  let currentStroke = null;
+  let swipeData = { start: null, arrows: [] };
+  let cardInputData = { rank: "", suit: "", digits: "" };
+  
+  let tapCounts = { red: 0, yellow: 0 };
+  let lastTapTimes = { red: 0, yellow: 0 };
+  
+  let trainNum = 1;
+  let adjTarget = "visor";
+  let lastResult = ""; 
+  let adjustMode = "number";
+  let isCardsAdjustMode = false;
+  let peekTimer = null;
 
   let cfg = JSON.parse(localStorage.getItem("mnem_v6_cfg") || JSON.stringify({
     visor: { x: 50, y: 80, s: 15, lh: 1.1, y2: 0, text: "…", label: "Peek Principal", inverted: false, useEmoji: false, o: 0.3 },
     number: { x: 12.5, y: 34, s: 75, h: 41, label: "Número" },
     footer: { x: 50, y: 90, s: 10, o: 0.3, text: "Sethi Draw v.1.0.2 (1.4.2814)", label: "Peek de Apoio" },
     peek: { x: 50, y: 82, s: 15, text: "", label: "Peek" },
-    toolbar: { x: 50, y: 85, s: 1, label: "Barra de Ferramentas" },
+    toolbar: { x: 50, y: 50, s: 1, label: "Barra de Ferramentas" },
     panelSetup: { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Configurações" },
     panelTrain: { x: 50, y: 30, s: 1, o: 0.6, label: "Desenhos de Números" },
     panelCards: { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Cartas" },
@@ -37,7 +51,16 @@
     if (cfg.footer.o === undefined) cfg.footer.o = 0.3;
     if (cfg.inputType === undefined) cfg.inputType = "swipe";
     cfg.peekDuration = 1.0;
-    ["panelSetup", "panelTrain", "panelCards"].forEach(p => { if (!cfg[p]) cfg[p] = { x: 50, y: 30, s: 1, o: 0.6, label: p }; });
+    if (!cfg.panelSetup) cfg.panelSetup = { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Configurações" };
+    if (!cfg.panelTrain) cfg.panelTrain = { x: 50, y: 30, s: 1, o: 0.6, label: "Desenhos de Números" };
+    if (!cfg.panelCards) cfg.panelCards = { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Cartas" };
+    
+    cfg.visor.label = "Peek Principal";
+    cfg.footer.label = "Peek de Apoio";
+    cfg.toolbar.label = "Barra de Ferramentas";
+    cfg.panelSetup.label = "Painel de Configurações";
+    cfg.panelTrain.label = "Desenhos de Números";
+    cfg.panelCards.label = "Painel de Cartas";
   };
   ensureCfg();
 
@@ -45,46 +68,40 @@
   const posMap = {}; STACK.forEach((c, i) => posMap[c] = i + 1);
 
   const init = () => {
-    // Aplicar configuração inicial IMEDIATAMENTE para evitar flash
-    updateDimensions();
-    applyCfg();
-    
     window.addEventListener('resize', onResize);
+    // Execução imediata para evitar flash
+    onResize();
     bindEvents();
     initEyeButton("eyeBtn", "setupPanel");
     initEyeButton("eyeBtnTrain", "trainPanel");
     initBlueButtonPeek();
     checkOrientation();
-    lockOrientation();
-    window.addEventListener('orientationchange', () => { checkOrientation(); lockOrientation(); });
-  };
-
-  const lockOrientation = async () => {
-    try { if (screen.orientation && screen.orientation.lock) { await screen.orientation.lock('portrait').catch(() => {}); } } catch (e) {}
+    window.addEventListener('orientationchange', checkOrientation);
+    
+    // Segundo ajuste após um pequeno delay apenas para garantir dimensões finais no iOS
+    setTimeout(onResize, 50);
   };
 
   const checkOrientation = () => {
     const warning = document.getElementById("orientationWarning");
-    if (window.innerWidth > window.innerHeight) warning.classList.remove("hidden");
-    else warning.classList.add("hidden");
+    if (window.innerWidth > window.innerHeight) { warning.classList.remove("hidden"); }
+    else { warning.classList.add("hidden"); }
   };
 
-  const updateDimensions = () => {
-    W = window.innerWidth; H = window.innerHeight; DPR = window.devicePixelRatio || 1;
-    board.width = W * DPR; board.height = H * DPR;
-    board.style.width = W + "px"; board.style.height = H + "px";
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  };
-
-  let resizeTimer;
   const onResize = () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      updateDimensions();
-      applyCfg();
-      render();
-      checkOrientation();
-    }, 150); // Delay apenas no resize real para estabilidade
+    W = window.innerWidth; 
+    H = window.innerHeight; 
+    DPR = window.devicePixelRatio || 1;
+    
+    board.width = W * DPR; 
+    board.height = H * DPR;
+    board.style.width = W + "px"; 
+    board.style.height = H + "px";
+    
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    applyCfg(); 
+    render(); 
+    checkOrientation();
   };
 
   const getExamplePeek = () => {
@@ -122,11 +139,7 @@
       const el = document.getElementById(id);
       const c = cfg[panels[id]];
       if (el && c) {
-        if (id === "toolbar") {
-          el.style.display = c.visible ? "flex" : "none";
-          // Pequeno delay para garantir que o estilo inline de opacidade 0 seja aplicado antes da transição
-          requestAnimationFrame(() => { el.style.opacity = "1"; });
-        }
+        if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
         el.style.left = (c.x * W / 100) + "px";
         el.style.top = (c.y * H / 100) + "px";
         el.style.transform = `translateX(-50%) scale(${c.s})`;
@@ -134,18 +147,10 @@
       }
     });
 
-    const emojiBtn = document.getElementById("toggleEmojiBtn");
-    if (emojiBtn) emojiBtn.textContent = `Símbolos de Naipes: ${cfg.visor.useEmoji ? 'ON' : 'OFF'}`;
-    
-    const swipeBtn = document.getElementById("inputSwipeBtn");
-    if (swipeBtn) swipeBtn.classList.toggle("active", cfg.inputType === "swipe");
-    
-    const cardsBtn = document.getElementById("inputCardsBtn");
-    if (cardsBtn) cardsBtn.classList.toggle("active", cfg.inputType === "cards");
-    
-    const invertBtn = document.getElementById("invertOrderBtn");
-    if (invertBtn) invertBtn.textContent = cfg.visor.inverted ? "Ordem: 05 4H → 4H 05" : "Ordem: 4H 05 → 05 4H";
-    
+    document.getElementById("toggleEmojiBtn").textContent = `Símbolos de Naipes: ${cfg.visor.useEmoji ? 'ON' : 'OFF'}`;
+    document.getElementById("inputSwipeBtn").classList.toggle("active", cfg.inputType === "swipe");
+    document.getElementById("inputCardsBtn").classList.toggle("active", cfg.inputType === "cards");
+    document.getElementById("invertOrderBtn").textContent = cfg.visor.inverted ? "Ordem: 05 4H → 4H 05" : "Ordem: 4H 05 → 05 4H";
     const peekPreview = document.getElementById("peekPreview");
     if (peekPreview) peekPreview.textContent = getExamplePeek();
 
@@ -161,18 +166,23 @@
       s.onclick = (e) => {
         if (s.dataset.color === "#007AFF" && s.dataset.isHolding === "true") return;
         e.stopPropagation();
-        const now = Date.now(), c = s.dataset.color;
+        const now = Date.now();
+        const c = s.dataset.color;
         document.querySelectorAll(".swatch").forEach(b => b.classList.remove("active"));
         s.classList.add("active");
         color = c;
 
         const updateTap = (key, limit, action) => {
-          if (now - lastTapTimes[key] < 500) tapCounts[key]++; else tapCounts[key] = 1;
+          if (now - lastTapTimes[key] < 500) tapCounts[key]++;
+          else tapCounts[key] = 1;
           lastTapTimes[key] = now;
           if (tapCounts[key] >= limit) { action(); tapCounts[key] = 0; }
         };
 
-        if (c === "#FF3B30") { if (cfg.inputType === "cards") window.toggleCards(false); else updateTap('red', 1, toggleSwipe); }
+        if (c === "#FF3B30") {
+          if (cfg.inputType === "cards") window.toggleCards(false);
+          else updateTap('red', 1, toggleSwipe);
+        }
         if (c === "#F7C600") updateTap('yellow', 5, toggleSetup);
       };
     });
@@ -184,6 +194,10 @@
       if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
       const p = getPt(e); e.preventDefault();
       if (mode === "swipe") { swipeData.start = p; return; }
+      if (mode === "train") {
+        // No modo treino, permitimos desenhar em qualquer lugar da tela que não seja o painel
+        // A restrição anterior impedia o desenho se o usuário começasse fora da caixa do número
+      }
       currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
     };
 
@@ -229,13 +243,13 @@
   const formatCard = (card) => {
     if (!card) return "";
     if (!cfg.visor.useEmoji) return card;
-    const rank = card.slice(0, -1), suit = card.slice(-1);
+    const rank = card.slice(0, -1); const suit = card.slice(-1);
     const emoji = {"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[suit] || suit;
     return rank + emoji;
   };
 
   const updateVisorProgress = () => {
-    const arr = swipeData.arrows, len = arr.length; let content = arr.join("");
+    const arr = swipeData.arrows; const len = arr.length; let content = arr.join("");
     if (len >= 3) {
       const rank = {"↑→":"A","→↑":"2","→→":"3","→↓":"4","↓→":"5","↓↓":"6","↓←":"7","←↓":"8","←←":"9","←↑":"10","↑←":"J","↑↑":"Q","↑↓":"K"}[arr[0]+arr[1]];
       const suit = {"↑":"S","→":"H","↓":"C","←":"D"}[arr[2]];
@@ -275,19 +289,20 @@
   const processResult = (card, num) => {
     if (!card || num < 1 || num > 52) { visorL1.textContent = "ERRO"; lastResult = "ERRO"; }
     else {
-      const pos = posMap[card], cut = ((pos - num % 52) + 52) % 52, cutNum = (cut === 0 ? 52 : cut);
-      const cardStr = formatCard(STACK[cutNum-1]), numStr = cutNum.toString().padStart(2, '0');
+      const pos = posMap[card]; const cut = ((pos - num % 52) + 52) % 52; const cutNum = (cut === 0 ? 52 : cut);
+      const cardStr = formatCard(STACK[cutNum-1]); const numStr = cutNum.toString().padStart(2, '0');
       const peekResult = cfg.visor.inverted ? `${numStr} ${cardStr}` : `${cardStr} ${numStr}`;
       visorL1.textContent = peekResult; lastResult = peekResult;
-      const ZZ_raw = cutNum.toString().padStart(2, '0'), ZZ = ZZ_raw[0] + "." + ZZ_raw[1]; 
-      const XX = pos.toString().padStart(2, '0'), YY = num.toString().padStart(2, '0'); 
+      const ZZ_raw = cutNum.toString().padStart(2, '0'); const ZZ = ZZ_raw[0] + "." + ZZ_raw[1]; 
+      const XX = pos.toString().padStart(2, '0'); const YY = num.toString().padStart(2, '0'); 
       footer.textContent = `Sethi Draw v.1.0.2 (${ZZ}.${XX}${YY})`; stamp(num);
     }
   };
 
   const stamp = (n) => {
-    const numKey = parseInt(n), g = JSON.parse(localStorage.getItem(`v6_g_${numKey}`) || "null");
-    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100, rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    const numKey = parseInt(n); const g = JSON.parse(localStorage.getItem(`v6_g_${numKey}`) || "null");
+    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
+    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
     if (g?.s) g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
     else { ctx.save(); ctx.font = "bold 50px sans-serif"; ctx.fillText(n, rx + 20, ry + 60); ctx.restore(); }
     render();
@@ -324,7 +339,10 @@
   window.selectCardPart = (type, val) => {
     if (type === 'rank') cardInputData.rank = val;
     if (type === 'suit') cardInputData.suit = val;
-    if (type === 'digit') { if (cardInputData.digits.length >= 2) cardInputData.digits = val; else cardInputData.digits += val; }
+    if (type === 'digit') {
+      if (cardInputData.digits.length >= 2) cardInputData.digits = val;
+      else cardInputData.digits += val;
+    }
     
     document.querySelectorAll(`#panelCards .card-btn[data-${type}]`).forEach(b => b.classList.remove("active"));
     const selectedBtn = document.querySelector(`#panelCards .card-btn[data-${type}="${val}"]`);
@@ -339,7 +357,11 @@
     }
   };
 
-  const resetCardInput = () => { cardInputData = { rank: "", suit: "", digits: "" }; cardInputDisplay.textContent = "--- --"; document.querySelectorAll("#panelCards .card-btn").forEach(b => b.classList.remove("active")); };
+  const resetCardInput = () => { 
+    cardInputData = { rank: "", suit: "", digits: "" }; 
+    cardInputDisplay.textContent = "--- --"; 
+    document.querySelectorAll("#panelCards .card-btn").forEach(b => b.classList.remove("active"));
+  };
 
   window.setTarget = (t) => { 
     adjTarget = t;
@@ -361,12 +383,17 @@
       else if (adjTarget === "visor" || adjTarget === "footer") { cfg.visor.s += val * 0.5; cfg.footer.s = cfg.visor.s; }
       else target.s += val * 0.5;
     }
-    if (axis === "o") { const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val)); if (adjTarget === "visor" || adjTarget === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; } else target.o = newVal; }
+    if (axis === "o") {
+      const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val));
+      if (adjTarget === "visor" || adjTarget === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; }
+      else target.o = newVal;
+    }
     applyCfg();
   };
 
   window.toggleEmoji = () => { cfg.visor.useEmoji = !cfg.visor.useEmoji; applyCfg(); };
   window.toggleInvertOrder = () => { cfg.visor.inverted = !cfg.visor.inverted; applyCfg(); };
+  // Duração fixada em 1.0s conforme solicitado
   cfg.peekDuration = 1.0;
 
   window.editTargetText = () => {
@@ -376,11 +403,20 @@
   };
 
   window.openTrainPanel = () => { window.setTarget('panelTrain'); closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum || 1); applyCfg(); };
-  window.toggleTrain = () => { mode = "draw"; trainPanel.classList.add("hidden"); applyCfg(); render(); };
-  window.setAdjustMode = (m) => { adjustMode = m; document.getElementById("modeNumBtn").classList.toggle("active", m === 'number'); document.getElementById("modePanelBtn").classList.toggle("active", m === 'panel'); };
+  window.toggleTrain = () => { 
+    mode = "draw"; 
+    trainPanel.classList.add("hidden"); 
+    applyCfg(); 
+    render(); 
+  };
+  window.setAdjustMode = (m) => {
+    adjustMode = m;
+    document.getElementById("modeNumBtn").classList.toggle("active", m === 'number');
+    document.getElementById("modePanelBtn").classList.toggle("active", m === 'panel');
+  };
   window.handleAdjust = (axis, val) => { if (adjustMode === 'number') window.adjustNumber(axis, val); else { adjTarget = "panelTrain"; window.adjust(axis, val); } };
   window.adjustNumber = (axis, val) => {
-    const target = cfg.number, pctX = (val / W) * 100, pctY = (val / H) * 100;
+    const target = cfg.number; const pctX = (val / W) * 100, pctY = (val / H) * 100;
     if (axis === "x") target.x += pctX * 2; if (axis === "y") target.y += pctY * 2;
     if (axis === "s") { target.s += pctX * 2; target.h += pctY * 2; }
     applyCfg(); if (mode === "train") loadTrain(trainNum);
@@ -388,13 +424,16 @@
 
   const loadTrain = (n) => { 
     trainNum = Math.max(1, Math.min(52, n)); trainNumEl.textContent = trainNum; strokes = []; 
-    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null"), rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100, rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
+    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
+    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
     if (g?.s) g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
     render(); 
   };
   window.trainStep = (d) => loadTrain(trainNum + d);
   window.trainSave = () => {
-    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100, rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
+    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
     const s = strokes.map(st => ({ p: st.p.map(p => ({ x: (p.x - rx)/rw, y: (p.y - ry)/rh })) }));
     if (s.length > 0) { localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify({ s })); if (trainNum < 52) window.trainStep(1); else alert("Salvo!"); }
   };
@@ -428,16 +467,21 @@
     const blueBtn = document.querySelector('.swatch[data-color="#007AFF"]');
     if (!blueBtn) return;
     let holdTimer = null;
-    const startBluePeek = () => { holdTimer = setTimeout(() => { blueBtn.dataset.isHolding = "true"; if (mode === "draw") { visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); } }, 200); };
-    const stopBluePeek = () => { clearTimeout(holdTimer); if (blueBtn.dataset.isHolding === "true") { setTimeout(() => { blueBtn.dataset.isHolding = "false"; }, 50); if (mode === "draw") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); } } };
+    const startBluePeek = (e) => {
+      holdTimer = setTimeout(() => { blueBtn.dataset.isHolding = "true"; if (mode === "draw") { visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); } }, 200);
+    };
+    const stopBluePeek = (e) => {
+      clearTimeout(holdTimer);
+      if (blueBtn.dataset.isHolding === "true") { setTimeout(() => { blueBtn.dataset.isHolding = "false"; }, 50); if (mode === "draw") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); } }
+    };
     blueBtn.addEventListener("mousedown", startBluePeek); window.addEventListener("mouseup", stopBluePeek);
     blueBtn.addEventListener("touchstart", startBluePeek, { passive: true }); window.addEventListener("touchend", stopBluePeek, { passive: true });
   };
 
   const initEyeButton = (btnId, panelId) => {
-    const btn = document.getElementById(btnId), panel = document.getElementById(panelId);
+    const btn = document.getElementById(btnId); const panel = document.getElementById(panelId);
     if (!btn || !panel) return;
-    const startPeek = () => panel.classList.add("transparent-peek"), stopPeek = () => panel.classList.remove("transparent-peek");
+    const startPeek = () => panel.classList.add("transparent-peek"); const stopPeek = () => panel.classList.remove("transparent-peek");
     btn.addEventListener("mousedown", startPeek); window.addEventListener("mouseup", stopPeek);
     btn.addEventListener("touchstart", startPeek, { passive: true }); btn.addEventListener("touchend", stopPeek, { passive: true });
   };

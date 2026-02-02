@@ -3,14 +3,11 @@
   --glass: rgba(124, 124, 124, 0.85);
   --accent: #007AFF;
   --text-dim: rgba(0, 0, 0, 0.3);
-  --ios-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * { 
   box-sizing: border-box; 
   -webkit-tap-highlight-color: transparent; 
-  /* Otimização de toque para evitar atrasos */
-  touch-action: manipulation;
 }
 
 /* Desabilitar seleção e touch apenas em elementos que não são interativos */
@@ -23,8 +20,6 @@
 body {
   user-select: none;
   -webkit-user-select: none;
-  /* Evita bounce no iOS */
-  overscroll-behavior: none;
 }
 
 html, body {
@@ -46,8 +41,6 @@ html, body {
   height: 100%;
   background: #fff;
   z-index: 1;
-  /* Aceleração de hardware para o canvas */
-  will-change: transform;
 }
 
 /* Aviso de Orientação */
@@ -56,8 +49,6 @@ html, body {
   background: rgba(0, 0, 0, 0.9); z-index: 9999;
   display: flex; align-items: center; justify-content: center; text-align: center;
   color: white; padding: 20px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 #orientationWarning.hidden { display: none; }
 .warning-content svg { margin-bottom: 15px; animation: rotate 2s infinite ease-in-out; }
@@ -83,9 +74,7 @@ html, body {
   gap: 6px;
   z-index: 1000;
   border: 0.5px solid rgba(255, 255, 255, 0.2);
-  /* Aceleração de hardware e transição suave */
-  will-change: transform, opacity;
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.3s ease, top 0.3s ease, transform 0.3s ease;
 }
 
 .tool-item {
@@ -97,7 +86,7 @@ html, body {
   color: #fff;
   display: flex;
   align-items: center; justify-content: center;
-  transition: var(--ios-transition);
+  transition: all 0.2s ease;
 }
 
 .tool-item:active { background: rgba(255, 255, 255, 0.15); transform: scale(0.9); }
@@ -146,7 +135,6 @@ html, body {
   width: 300px;
   transform: translateX(-50%);
   line-height: 1.1;
-  will-change: opacity, transform;
 }
 
 .footer-container {
@@ -167,8 +155,8 @@ html, body {
   max-width: 90%;
   max-height: 80vh;
   background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 28px;
   padding: 0;
   z-index: 2000;
@@ -178,17 +166,9 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   touch-action: pan-y;
-  /* Transição suave para abertura */
-  will-change: transform, opacity;
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.panel.hidden { 
-  display: none !important; 
-  opacity: 0;
-  transform: translateX(-50%) scale(0.95);
-}
-
+.panel.hidden { display: none !important; }
 .panel.transparent-peek { opacity: 0.05 !important; transition: opacity 0.2s ease; pointer-events: none; }
 
 .panel-header { 
@@ -223,12 +203,8 @@ html, body {
 
 .setup-btn, .ctrl-btn, .action-btn, .mini-btn, .card-btn {
   border: 0; padding: 14px; border-radius: 14px; background: #f2f2f7; font-weight: 600; color: #1c1c1e; font-size: 14px;
-  transition: var(--ios-transition);
+  transition: all 0.2s ease;
   display: flex; align-items: center; justify-content: center; text-align: center;
-}
-.setup-btn:active, .ctrl-btn:active, .action-btn:active, .mini-btn:active, .card-btn:active {
-  transform: scale(0.96);
-  background: #e5e5ea;
 }
 .setup-btn.active, .mini-btn.active, .card-btn.active { background: var(--accent) !important; color: #fff !important; }
 
@@ -284,9 +260,7 @@ html, body {
   width: 100%; padding: 18px; border: none; border-radius: 16px;
   font-size: 17px; font-weight: 700; color: #fff;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transition: var(--ios-transition);
 }
-.activation-button:active { transform: scale(0.98); opacity: 0.9; }
 .activation-footer { margin-top: 30px; font-size: 12px; color: #8e8e93; line-height: 1.5; }
 .activation-device-id { margin-top: 20px; padding: 12px; background: rgba(0, 0, 0, 0.05); border-radius: 10px; font-size: 11px; color: #8e8e93; font-family: monospace; }
 

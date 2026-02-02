@@ -101,7 +101,9 @@
   
   if (isActivated) {
     console.log('✅ Licença já ativada');
-    // Se já estiver ativado, não precisamos mostrar nada, nem a tela de instalação
+    // Se já estiver ativado, garantimos que as telas de bloqueio estejam escondidas
+    activationScreen.style.display = 'none';
+    installScreen.classList.add('hidden');
   } else {
     // Se não estiver ativado, verificar se está no modo Standalone
     if (!isStandalone) {
