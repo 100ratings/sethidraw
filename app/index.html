@@ -10,6 +10,32 @@
   <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2" />
   <link rel="manifest" href="./manifest.json?v=2" />
   <link rel="stylesheet" href="./style.css?v=6.1.2" />
+  <style>
+    /* Estilos críticos para evitar flash inicial */
+    #toolbar {
+      position: absolute;
+      left: 50%;
+      top: 85%;
+      transform: translateX(-50%);
+      height: 62px;
+      min-width: 320px;
+      background: rgba(124, 124, 124, 0.85);
+      border-radius: 31px;
+      display: flex;
+      z-index: 1000;
+      opacity: 0; /* Começa invisível e aparece via JS para evitar pulo */
+    }
+    .visor-container, .footer-container {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      opacity: 0;
+    }
+    #activationScreen, #installScreen, #orientationWarning {
+      display: none;
+    }
+  </style>
   <script src="./config.js"></script>
   <script src="./license-manager.js"></script>
 </head>
