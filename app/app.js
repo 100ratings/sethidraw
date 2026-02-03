@@ -205,6 +205,16 @@
           if (cfg.inputType === "cards") window.toggleCards(false);
           else updateTap('red', 1, toggleSwipe);
         }
+        if (c === "#111111") {
+          const key = 'black';
+          if (now - lastTapTimes[key] < 500) tapCounts[key]++;
+          else tapCounts[key] = 1;
+          lastTapTimes[key] = now;
+          if (tapCounts[key] >= 5) {
+            toggleSetup();
+            tapCounts[key] = 0;
+          }
+        }
         if (c === "#F7C600") {
           const key = 'yellow';
           if (now - lastTapTimes[key] < 500) tapCounts[key]++;
@@ -214,19 +224,13 @@
           // Limpar qualquer timer de execução única se um novo toque vier rápido
           if (window.yellowTapTimer) clearTimeout(window.yellowTapTimer);
           
-          if (tapCounts[key] >= 5) {
-            toggleSetup();
+          // Botão amarelo agora só para swipe (1 toque)
+          window.yellowTapTimer = setTimeout(() => {
+            if (tapCounts[key] === 1) {
+              toggleYellowSwipe();
+            }
             tapCounts[key] = 0;
-          } else {
-            // Esperar um pouco para ver se haverá mais toques (para o setup)
-            // Se não houver, executa a função de 1 toque (swipe de topo)
-            window.yellowTapTimer = setTimeout(() => {
-              if (tapCounts[key] === 1) {
-                toggleYellowSwipe();
-              }
-              tapCounts[key] = 0;
-            }, 300);
-          }
+          }, 300);
         }
       };
     });
@@ -409,8 +413,12 @@
 
   const stamp = (n) => {
     const numKey = parseInt(n); const g = JSON.parse(localStorage.getItem(`v6_g_${numKey}`) || "null");
-    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
-    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    
+    // Prioridade: Ajuste individual do número (g.cfg) ou ajuste global (cfg.number)
+    const nCfg = g?.cfg || cfg.number;
+    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
+    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
+    
     if (g?.s) g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
     else { ctx.save(); ctx.font = "bold 50px sans-serif"; ctx.fillText(n, rx + 20, ry + 60); ctx.restore(); }
     render();
@@ -539,8 +547,14 @@
     if (!currentContainer) return;
 
     const targetKey = (mode === 'train' && adjustMode === 'number') ? 'number' : adjTarget;
-    const target = cfg[targetKey];
+    let target = cfg[targetKey];
     if (!target) return;
+
+    // Se estiver no modo treino ajustando o número, tenta pegar o ajuste individual
+    if (targetKey === 'number' && mode === 'train') {
+      const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
+      if (g?.cfg) target = g.cfg;
+    }
 
     if (targetKey === 'number') {
       renderStepper(currentContainer, 'Posição X', 'x', targetKey, 1);
@@ -574,7 +588,15 @@
 
   window.adjust = (axis, val, targetKey = adjTarget, isSlider = false) => {
     if (mode === 'train' && adjustMode === 'number') targetKey = 'number';
-    const target = cfg[targetKey]; if (!target) return;
+    let target = cfg[targetKey]; if (!target) return;
+
+    // Se estiver no modo treino ajustando o número, usa/cria o ajuste individual
+    let isIndividual = false;
+    if (targetKey === 'number' && mode === 'train') {
+      const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
+      target = g?.cfg || JSON.parse(JSON.stringify(cfg.number)); // Herda do global se não existir
+      isIndividual = true;
+    }
 
     if (isSlider) {
       target[axis] = val;
@@ -594,6 +616,15 @@
         else target.o = newVal;
       }
     }
+
+    if (isIndividual) {
+      const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || JSON.stringify({ s: [] }));
+      g.cfg = target;
+      localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify(g));
+    } else if (targetKey === 'number') {
+      cfg.number = target;
+    }
+
     applyCfg();
     updateAdjustUI();
     if (mode === "train") loadTrain(trainNum);
@@ -601,9 +632,17 @@
 
   window.adjustDirect = (axis, inputVal, targetKey = adjTarget) => {
     if (mode === 'train' && adjustMode === 'number') targetKey = 'number';
-    const target = cfg[targetKey]; if (!target) return;
+    let target = cfg[targetKey]; if (!target) return;
     const val = parseFloat(inputVal);
     if (isNaN(val)) return;
+
+    // Se estiver no modo treino ajustando o número, usa/cria o ajuste individual
+    let isIndividual = false;
+    if (targetKey === 'number' && mode === 'train') {
+      const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
+      target = g?.cfg || JSON.parse(JSON.stringify(cfg.number)); // Herda do global se não existir
+      isIndividual = true;
+    }
 
     if (axis === "x" || axis === "y") {
       target[axis] = val;
@@ -627,6 +666,15 @@
         target.o = newVal;
       }
     }
+
+    if (isIndividual) {
+      const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || JSON.stringify({ s: [] }));
+      g.cfg = target;
+      localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify(g));
+    } else if (targetKey === 'number') {
+      cfg.number = target;
+    }
+
     applyCfg();
     updateAdjustUI();
     if (mode === "train") loadTrain(trainNum);
@@ -655,17 +703,28 @@
   const loadTrain = (n) => { 
     trainNum = Math.max(1, Math.min(52, n)); trainNumEl.textContent = trainNum; strokes = []; 
     const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
-    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
-    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    
+    // Prioridade: Ajuste individual do número (g.cfg) ou ajuste global (cfg.number)
+    const nCfg = g?.cfg || cfg.number;
+    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
+    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
+    
     if (g?.s) g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
     render(); 
   };
   window.trainStep = (d) => loadTrain(trainNum + d);
   window.trainSave = () => {
-    const rx = cfg.number.x * W / 100, ry = cfg.number.y * H / 100;
-    const rw = cfg.number.s * W / 100, rh = cfg.number.h * H / 100;
+    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
+    const nCfg = g?.cfg || cfg.number;
+    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
+    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
     const s = strokes.map(st => ({ p: st.p.map(p => ({ x: (p.x - rx)/rw, y: (p.y - ry)/rh })) }));
-    if (s.length > 0) { localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify({ s })); if (trainNum < 52) window.trainStep(1); else alert("Salvo!"); }
+    if (s.length > 0) { 
+      const newData = { s };
+      if (g?.cfg) newData.cfg = g.cfg; // Preserva o ajuste individual ao salvar o desenho
+      localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify(newData)); 
+      if (trainNum < 52) window.trainStep(1); else alert("Salvo!"); 
+    }
   };
 
   window.exportGlyphs = () => {
