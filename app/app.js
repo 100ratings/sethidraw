@@ -144,7 +144,11 @@
     footer.style.top = (cfg.footer.y * H / 100) + "px";
     footer.style.fontSize = cfg.footer.s + "px";
     footer.style.opacity = cfg.footer.o;
-    if (mode !== "swipe") footer.textContent = cfg.footer.text;
+    // Preservação Total: O footer (Peek de Apoio) mantém o último resultado se existir,
+    // caso contrário mostra o texto padrão das configurações.
+    if (mode !== "swipe") {
+      footer.textContent = lastResult || cfg.footer.text;
+    }
 
     const panels = { "toolbar": "toolbar", "setupPanel": "panelSetup", "trainPanel": "panelTrain", "panelCards": "panelCards" };
     Object.keys(panels).forEach(id => {
