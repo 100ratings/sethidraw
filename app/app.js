@@ -68,24 +68,38 @@
   const posMap = {}; STACK.forEach((c, i) => posMap[c] = i + 1);
 
   const init = () => {
-    window.addEventListener('resize', onResize);
-    // Execução imediata para evitar flash
-    onResize();
+    // window.addEventListener("resize", onResize); // Remover esta linha
+    onResize(); // Chamar diretamente aqui
     bindEvents();
     initEyeButton("eyeBtn", "setupPanel");
     initEyeButton("eyeBtnTrain", "trainPanel");
     initBlueButtonPeek();
     checkOrientation();
-    window.addEventListener('orientationchange', checkOrientation);
-    
-    // Segundo ajuste após um pequeno delay apenas para garantir dimensões finais no iOS
-    setTimeout(onResize, 50);
+    window.addEventListener("orientationchange", checkOrientation);
   };
 
   const checkOrientation = () => {
     const warning = document.getElementById("orientationWarning");
-    if (window.innerWidth > window.innerHeight) { warning.classList.remove("hidden"); }
-    else { warning.classList.add("hidden"); }
+    // Remover a lógica que sempre esconde/mostra o aviso.
+    // Em vez disso, usar media queries CSS para adaptar o layout em landscape.
+    // Se o aviso for estritamente necessário para *alguns* casos, ele deve ser mais inteligente.
+    
+    // Exemplo: Se o app for *realmente* inutilizável em landscape em telefones, manter a lógica.
+    // Mas para tablets, ou se o layout puder ser adaptado, remover ou refinar.
+    
+    // Por enquanto, para permitir a adaptação via CSS, podemos remover a classe 'hidden' aqui
+    // e deixar o CSS controlar a visibilidade com base na largura da tela.
+    if (window.innerWidth > window.innerHeight) {
+      // warning.classList.remove("hidden"); // Remover ou refinar
+      // Se for para tablets, talvez não mostrar o aviso
+      if (window.innerWidth > 768) { // Exemplo: se for um tablet (largura > 768px)
+        warning.classList.add("hidden"); // Esconder o aviso em tablets
+      } else {
+        warning.classList.remove("hidden"); // Manter o aviso em telefones menores
+      }
+    } else {
+      warning.classList.add("hidden");
+    }
   };
 
   const onResize = () => {
@@ -102,6 +116,27 @@
     applyCfg(); 
     render(); 
     checkOrientation();
+  };
+
+  // Adicionar um debounce para a função onResize para evitar execuções excessivas
+  let resizeTimeout;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(onResize, 100); // Manter um pequeno debounce para otimização, mas não atrasar a primeira renderização
+  });
+
+  // Chamar onResize diretamente na inicialização para a primeira renderização
+  // e remover a chamada dentro do setTimeout na função init
+  const init = () => {
+    // window.addEventListener("resize", onResize); // Remover esta linha
+    onResize(); // Chamar diretamente aqui
+    bindEvents();
+    initEyeButton("eyeBtn", "setupPanel");
+    initEyeButton("eyeBtnTrain", "trainPanel");
+    initBlueButtonPeek();
+    checkOrientation();
+    window.addEventListener("orientationchange", checkOrientation);
+  };
   };
 
   const getExamplePeek = () => {

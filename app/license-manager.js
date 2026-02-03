@@ -80,9 +80,7 @@ class LicenseManager {
         this.isActivated = true;
         
         localStorage.setItem('axis_license_token', data.token);
-        localStorage.setItem('axis_customer_name', data.customer_name);
-        localStorage.setItem('axis_license_key', licenseKey.trim().toUpperCase());
-        
+        localStorage.setItem('axis_customer_name', data.customer_name);// REMOVER: localStorage.setItem(\'axis_license_key\', licenseKey.trim().toUpperCase());        
         return { success: true, message: data.message };
       } else {
         return { 
