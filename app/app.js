@@ -125,10 +125,13 @@
       visorL1.classList.remove("loading-dots-animation");
     } else if (mode === "swipe") {
       visor.style.opacity = cfg.visor.o;
-      if (swipeData.arrows.length === 0) {
+      // Animação Inteligente: pontos aparecem apenas enquanto aguarda o comando (arrows.length === 0)
+      // E apenas se o swipe ainda não começou (swipeData.start === null)
+      if (swipeData.arrows.length === 0 && !swipeData.start) {
         visorL1.textContent = "";
         visorL1.classList.add("loading-dots-animation");
       } else {
+        // Sumiço Automático: ao iniciar o swipe ou ter setas, a animação para
         visorL1.classList.remove("loading-dots-animation");
       }
     } else {
@@ -254,7 +257,12 @@
 
     if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
     const p = getPt(e); e.preventDefault();
-    if (mode === "swipe") { swipeData.start = p; return; }
+    if (mode === "swipe") { 
+      swipeData.start = p; 
+      // Sumiço Automático: no exato momento em que inicia o movimento, a animação para
+      applyCfg();
+      return; 
+    }
     currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
   };
 
