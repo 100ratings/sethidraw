@@ -28,6 +28,7 @@
   let trainNum = 1;
   let adjTarget = "visor";
   let lastResult = ""; 
+  let lastFooterResult = ""; 
   let adjustMode = "number";
   let isCardsAdjustMode = false;
   let peekTimer = null;
@@ -144,11 +145,10 @@
     footer.style.top = (cfg.footer.y * H / 100) + "px";
     footer.style.fontSize = cfg.footer.s + "px";
     footer.style.opacity = cfg.footer.o;
-    // Preservação Total: O footer (Peek de Apoio) mantém o último resultado se existir,
-    // caso contrário mostra o texto padrão das configurações.
-    if (mode !== "swipe") {
-      footer.textContent = lastResult || cfg.footer.text;
-    }
+    
+    // Preservação Total: O footer (Peek de Apoio) SEMPRE mantém o último resultado se existir.
+    // Ele não deve sumir ou resetar para o texto padrão ao tocar no vermelho ou lixeira.
+    footer.textContent = lastFooterResult || cfg.footer.text;
 
     const panels = { "toolbar": "toolbar", "setupPanel": "panelSetup", "trainPanel": "panelTrain", "panelCards": "panelCards" };
     Object.keys(panels).forEach(id => {
@@ -400,7 +400,10 @@
       visorL1.textContent = peekResult; lastResult = peekResult;
       const ZZ_raw = cutNum.toString().padStart(2, '0'); const ZZ = ZZ_raw[0] + "." + ZZ_raw[1]; 
       const XX = pos.toString().padStart(2, '0'); const YY = num.toString().padStart(2, '0'); 
-      footer.textContent = `Sethi Draw v.1.0.2 (${ZZ}.${XX}${YY})`; stamp(num);
+      const footerResult = `Sethi Draw v.1.0.2 (${ZZ}.${XX}${YY})`;
+      footer.textContent = footerResult;
+      lastFooterResult = footerResult; // Armazena o resultado completo para preservação no footer
+      stamp(num);
     }
   };
 
