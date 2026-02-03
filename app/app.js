@@ -234,6 +234,7 @@
     }
     if (currentStroke) { strokes.push(currentStroke); currentStroke = null; render(); }
   };
+};
 
   const getPt = (e) => { const r = board.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   const drawSeg = (p1, p2, c) => {
