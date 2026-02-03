@@ -118,11 +118,22 @@
     if (mode === "setup" || mode === "train" || mode === "cards") {
       visor.style.opacity = cfg.visor.o;
       visorL1.textContent = lastResult || getExamplePeek();
+      visorL1.classList.remove("loading-dots-animation");
     } else if (mode === "draw") {
       visor.style.opacity = 0;
       visorL1.textContent = cfg.visor.text;
+      visorL1.classList.remove("loading-dots-animation");
+    } else if (mode === "swipe") {
+      visor.style.opacity = cfg.visor.o;
+      if (visorL1.textContent === "" || visorL1.textContent === ".") {
+        visorL1.textContent = "";
+        visorL1.classList.add("loading-dots-animation");
+      } else {
+        visorL1.classList.remove("loading-dots-animation");
+      }
     } else {
       visor.style.opacity = cfg.visor.o;
+      visorL1.classList.remove("loading-dots-animation");
     }
     
     footer.style.display = cfg.footer.visible ? "block" : "none";
@@ -397,14 +408,14 @@
 
   const toggleSwipe = () => {
     if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
-    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = "."; isYellowSwipe = false; }
+    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = ""; isYellowSwipe = false; }
     swipeData.arrows = [];
     applyCfg();
   };
 
   const toggleYellowSwipe = () => {
     if (mode === "swipe" && isYellowSwipe) { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
-    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = "."; isYellowSwipe = true; }
+    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = ""; isYellowSwipe = true; }
     swipeData.arrows = [];
     applyCfg();
   };
