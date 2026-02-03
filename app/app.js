@@ -148,6 +148,7 @@
     document.getElementById("toggleEmojiBtn").textContent = `Símbolos de Naipes: ${cfg.visor.useEmoji ? 'ON' : 'OFF'}`;
     document.getElementById("inputSwipeBtn").classList.toggle("active", cfg.inputType === "swipe");
     document.getElementById("swatchGroup").querySelectorAll(".swatch").forEach(s => {
+      // O pontinho de cima (swipe-active) agora mostra a animação de carregamento (. .. ...)
       if (s.dataset.color === "#FF3B30") s.classList.toggle("swipe-active", mode === "swipe" && !isYellowSwipe);
       if (s.dataset.color === "#F7C600") s.classList.toggle("swipe-active", mode === "swipe" && isYellowSwipe);
     });
