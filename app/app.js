@@ -46,6 +46,7 @@
   const ensureCfg = () => {
     Object.keys(cfg).forEach(k => { if (cfg[k] && typeof cfg[k] === 'object' && cfg[k].visible === undefined) cfg[k].visible = true; });
     if (cfg.visor.useEmoji === undefined) cfg.visor.useEmoji = false;
+    if (cfg.visor.peekStyle === undefined) cfg.visor.peekStyle = "both";
     if (cfg.visor.o === undefined) cfg.visor.o = 0.3;
     if (cfg.footer.o === undefined) cfg.footer.o = 0.3;
     if (cfg.inputType === undefined) cfg.inputType = "swipe";
@@ -101,6 +102,7 @@
   const getExamplePeek = () => {
     const cardStr = cfg.visor.useEmoji ? "3♥️" : "3H";
     const numStr = "14";
+    if (cfg.visor.peekStyle === "cardOnly") return cardStr;
     return cfg.visor.inverted ? `${numStr} ${cardStr}` : `${cardStr} ${numStr}`;
   };
 
@@ -145,6 +147,7 @@
     document.getElementById("inputSwipeBtn").classList.toggle("active", cfg.inputType === "swipe");
     document.getElementById("inputCardsBtn").classList.toggle("active", cfg.inputType === "cards");
     document.getElementById("invertOrderBtn").textContent = cfg.visor.inverted ? "Ordem: 05 4H → 4H 05" : "Ordem: 4H 05 → 05 4H";
+    document.getElementById("togglePeekStyleBtn").textContent = `Estilo: ${cfg.visor.peekStyle === 'cardOnly' ? 'Apenas Carta' : 'Carta + Posição'}`;
     const peekPreview = document.getElementById("peekPreview");
     if (peekPreview) peekPreview.textContent = getExamplePeek();
 
@@ -185,20 +188,6 @@
     document.getElementById("clearBtn").onclick = (e) => { e.stopPropagation(); strokes = []; render(); };
 
     window.onpointerdown = (e) => {
-      // Fechar modais ao clicar fora (backdrop)
-      if (mode === "setup" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
-        window.toggleSetup();
-        return;
-      }
-      if (mode === "train" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
-        window.toggleTrain();
-        return;
-      }
-      if (mode === "cards" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
-        window.toggleCards();
-        return;
-      }
-      
       if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
       const p = getPt(e); e.preventDefault();
       if (mode === "swipe") { swipeData.start = p; return; }
@@ -293,7 +282,7 @@
     else {
       const pos = posMap[card]; const cut = ((pos - num % 52) + 52) % 52; const cutNum = (cut === 0 ? 52 : cut);
       const cardStr = formatCard(STACK[cutNum-1]); const numStr = cutNum.toString().padStart(2, '0');
-      const peekResult = cfg.visor.inverted ? `${numStr} ${cardStr}` : `${cardStr} ${numStr}`;
+      const peekResult = cfg.visor.peekStyle === "cardOnly" ? cardStr : (cfg.visor.inverted ? `${numStr} ${cardStr}` : `${cardStr} ${numStr}`);
       visorL1.textContent = peekResult; lastResult = peekResult;
       const ZZ_raw = cutNum.toString().padStart(2, '0'); const ZZ = ZZ_raw[0] + "." + ZZ_raw[1]; 
       const XX = pos.toString().padStart(2, '0'); const YY = num.toString().padStart(2, '0'); 
@@ -518,6 +507,7 @@
   };
 
   window.toggleEmoji = () => { cfg.visor.useEmoji = !cfg.visor.useEmoji; applyCfg(); };
+  window.togglePeekStyle = () => { cfg.visor.peekStyle = cfg.visor.peekStyle === "both" ? "cardOnly" : "both"; applyCfg(); };
   window.toggleInvertOrder = () => { cfg.visor.inverted = !cfg.visor.inverted; applyCfg(); };
   cfg.peekDuration = 1.0;
 
