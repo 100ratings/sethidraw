@@ -125,7 +125,7 @@
       visorL1.classList.remove("loading-dots-animation");
     } else if (mode === "swipe") {
       visor.style.opacity = cfg.visor.o;
-      if (visorL1.textContent === "" || visorL1.textContent === ".") {
+      if (swipeData.arrows.length === 0) {
         visorL1.textContent = "";
         visorL1.classList.add("loading-dots-animation");
       } else {
