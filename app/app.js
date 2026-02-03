@@ -10,7 +10,6 @@
   const trainNumEl = document.getElementById("trainNumDisplay");
   const cardInputDisplay = document.getElementById("cardInputDisplay");
   const cardsAdjustControls = document.getElementById("cardsAdjustControls");
-  const peekDurationDisplay = document.getElementById("peekDurationDisplay");
 
   let W = window.innerWidth, H = window.innerHeight, DPR = window.devicePixelRatio || 1;
 
@@ -68,75 +67,31 @@
   const posMap = {}; STACK.forEach((c, i) => posMap[c] = i + 1);
 
   const init = () => {
-    // window.addEventListener("resize", onResize); // Remover esta linha
-    onResize(); // Chamar diretamente aqui
+    window.addEventListener('resize', onResize);
+    onResize();
     bindEvents();
     initEyeButton("eyeBtn", "setupPanel");
     initEyeButton("eyeBtnTrain", "trainPanel");
     initBlueButtonPeek();
     checkOrientation();
-    window.addEventListener("orientationchange", checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    updateAdjustUI();
   };
 
   const checkOrientation = () => {
     const warning = document.getElementById("orientationWarning");
-    // Remover a lógica que sempre esconde/mostra o aviso.
-    // Em vez disso, usar media queries CSS para adaptar o layout em landscape.
-    // Se o aviso for estritamente necessário para *alguns* casos, ele deve ser mais inteligente.
-    
-    // Exemplo: Se o app for *realmente* inutilizável em landscape em telefones, manter a lógica.
-    // Mas para tablets, ou se o layout puder ser adaptado, remover ou refinar.
-    
-    // Por enquanto, para permitir a adaptação via CSS, podemos remover a classe 'hidden' aqui
-    // e deixar o CSS controlar a visibilidade com base na largura da tela.
-    if (window.innerWidth > window.innerHeight) {
-      // warning.classList.remove("hidden"); // Remover ou refinar
-      // Se for para tablets, talvez não mostrar o aviso
-      if (window.innerWidth > 768) { // Exemplo: se for um tablet (largura > 768px)
-        warning.classList.add("hidden"); // Esconder o aviso em tablets
-      } else {
-        warning.classList.remove("hidden"); // Manter o aviso em telefones menores
-      }
-    } else {
-      warning.classList.add("hidden");
-    }
+    if (window.innerWidth > window.innerHeight) { warning.classList.remove("hidden"); }
+    else { warning.classList.add("hidden"); }
   };
 
   const onResize = () => {
-    W = window.innerWidth; 
-    H = window.innerHeight; 
-    DPR = window.devicePixelRatio || 1;
-    
-    board.width = W * DPR; 
-    board.height = H * DPR;
-    board.style.width = W + "px"; 
-    board.style.height = H + "px";
-    
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    applyCfg(); 
-    render(); 
-    checkOrientation();
-  };
-
-  // Adicionar um debounce para a função onResize para evitar execuções excessivas
-  let resizeTimeout;
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(onResize, 100); // Manter um pequeno debounce para otimização, mas não atrasar a primeira renderização
-  });
-
-  // Chamar onResize diretamente na inicialização para a primeira renderização
-  // e remover a chamada dentro do setTimeout na função init
-  const init = () => {
-    // window.addEventListener("resize", onResize); // Remover esta linha
-    onResize(); // Chamar diretamente aqui
-    bindEvents();
-    initEyeButton("eyeBtn", "setupPanel");
-    initEyeButton("eyeBtnTrain", "trainPanel");
-    initBlueButtonPeek();
-    checkOrientation();
-    window.addEventListener("orientationchange", checkOrientation);
-  };
+    setTimeout(() => {
+      W = window.innerWidth; H = window.innerHeight; DPR = window.devicePixelRatio || 1;
+      board.width = W * DPR; board.height = H * DPR;
+      board.style.width = W + "px"; board.style.height = H + "px";
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      applyCfg(); render(); checkOrientation();
+    }, 100);
   };
 
   const getExamplePeek = () => {
@@ -229,10 +184,6 @@
       if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
       const p = getPt(e); e.preventDefault();
       if (mode === "swipe") { swipeData.start = p; return; }
-      if (mode === "train") {
-        // No modo treino, permitimos desenhar em qualquer lugar da tela que não seja o painel
-        // A restrição anterior impedia o desenho se o usuário começasse fora da caixa do número
-      }
       currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
     };
 
@@ -276,8 +227,6 @@
   };
 
   const formatCard = (card) => {
-    if (!card) return "";
-    if (!cfg.visor.useEmoji) return card;
     const rank = card.slice(0, -1); const suit = card.slice(-1);
     const emoji = {"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[suit] || suit;
     return rank + emoji;
@@ -345,7 +294,7 @@
 
   window.toggleSetup = () => {
     if (mode === "setup") { mode = "draw"; setupPanel.classList.add("hidden"); visor.style.opacity = 0; applyCfg(); }
-    else { closeOtherPanels(); mode = "setup"; setupPanel.classList.remove("hidden"); applyCfg(); }
+    else { closeOtherPanels(); mode = "setup"; setupPanel.classList.remove("hidden"); applyCfg(); updateAdjustUI(); }
   };
 
   const toggleSwipe = () => {
@@ -361,6 +310,7 @@
       isCardsAdjustMode = isAdjust;
       cardsAdjustControls.classList.toggle("hidden", !isAdjust);
       visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); resetCardInput(); 
+      if (isAdjust) updateAdjustUI();
     }
   };
 
@@ -402,33 +352,106 @@
     adjTarget = t;
     document.getElementById("oControl").style.display = (t === "visor" || t === "footer" || t.startsWith("panel")) ? "block" : "none";
     document.getElementById("editTextBtn").style.display = (t === "footer") ? "block" : "none";
+    updateAdjustUI();
     applyCfg();
   };
 
   window.setInputType = (type) => { cfg.inputType = type; applyCfg(); };
 
-  window.adjust = (axis, val) => {
-    const target = cfg[adjTarget]; if (!target) return;
-    const pctX = (val / W) * 100, pctY = (val / H) * 100;
-    if (axis === "x") target.x += pctX * 2;
-    if (axis === "y") target.y += pctY * 2;
-    if (axis === "s") {
-      if (adjTarget === "toolbar" || adjTarget.startsWith("panel")) target.s = Math.max(0.5, Math.min(2.0, target.s + val * 0.01));
-      else if (adjTarget === "number") { target.s += pctX * 2; target.h += pctY * 2; }
-      else if (adjTarget === "visor" || adjTarget === "footer") { cfg.visor.s += val * 0.5; cfg.footer.s = cfg.visor.s; }
-      else target.s += val * 0.5;
+  // Funções de Ajuste Aprimoradas
+  const renderStepper = (parent, label, axis, targetKey, step) => {
+    const val = cfg[targetKey][axis];
+    const displayVal = axis === 's' || axis === 'o' ? val.toFixed(2) : Math.round(val);
+    const html = `
+      <div class="stepper-control">
+        <span class="stepper-label">${label}</span>
+        <button class="stepper-btn" onclick="window.adjust('${axis}', -${step}, '${targetKey}')">-</button>
+        <span class="stepper-value">${displayVal}</span>
+        <button class="stepper-btn" onclick="window.adjust('${axis}', ${step}, '${targetKey}')">+</button>
+      </div>
+    `;
+    parent.insertAdjacentHTML('beforeend', html);
+  };
+
+  const renderSlider = (parent, label, axis, targetKey, min, max, step) => {
+    const val = cfg[targetKey][axis];
+    const html = `
+      <div class="slider-control">
+        <div class="slider-label-group">
+          <span class="slider-label">${label}</span>
+          <span class="slider-value-display">${val.toFixed(2)}</span>
+        </div>
+        <input type="range" min="${min}" max="${max}" step="${step}" value="${val}" class="range-slider" 
+               oninput="window.adjust('${axis}', parseFloat(this.value), '${targetKey}', true)">
+      </div>
+    `;
+    parent.insertAdjacentHTML('beforeend', html);
+  };
+
+  window.updateAdjustUI = () => {
+    const setupContainer = document.getElementById("setupAdjusts");
+    const trainContainer = document.getElementById("trainAdjusts");
+    const cardsContainer = document.getElementById("cardsAdjusts");
+    const opacityContainer = document.getElementById("opacitySlider");
+
+    if (setupContainer) setupContainer.innerHTML = "";
+    if (trainContainer) trainContainer.innerHTML = "";
+    if (cardsContainer) cardsContainer.innerHTML = "";
+    if (opacityContainer) opacityContainer.innerHTML = "";
+
+    const currentContainer = mode === 'setup' ? setupContainer : (mode === 'train' ? trainContainer : cardsContainer);
+    if (!currentContainer) return;
+
+    const targetKey = (mode === 'train' && adjustMode === 'number') ? 'number' : adjTarget;
+    const target = cfg[targetKey];
+    if (!target) return;
+
+    if (targetKey === 'number') {
+      renderStepper(currentContainer, 'Posição X', 'x', targetKey, 1);
+      renderStepper(currentContainer, 'Posição Y', 'y', targetKey, 1);
+      renderStepper(currentContainer, 'Largura', 's', targetKey, 1);
+      renderStepper(currentContainer, 'Altura', 'h', targetKey, 1);
+    } else {
+      renderStepper(currentContainer, 'Posição X', 'x', targetKey, 1);
+      renderStepper(currentContainer, 'Posição Y', 'y', targetKey, 1);
+      const sStep = targetKey.startsWith('panel') || targetKey === 'toolbar' ? 0.05 : 1;
+      renderStepper(currentContainer, targetKey.startsWith('panel') ? 'Escala' : 'Tamanho', 's', targetKey, sStep);
     }
-    if (axis === "o") {
-      const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val));
-      if (adjTarget === "visor" || adjTarget === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; }
-      else target.o = newVal;
+
+    if (opacityContainer && (adjTarget === 'visor' || adjTarget === 'footer' || adjTarget.startsWith('panel'))) {
+      renderSlider(opacityContainer, 'Opacidade', 'o', adjTarget, 0.05, 1, 0.01);
+    }
+  };
+
+  window.adjust = (axis, val, targetKey = adjTarget, isSlider = false) => {
+    if (mode === 'train' && adjustMode === 'number') targetKey = 'number';
+    const target = cfg[targetKey]; if (!target) return;
+
+    if (isSlider) {
+      target[axis] = val;
+    } else {
+      if (axis === "x") target.x += (val / W) * 100 * 2;
+      else if (axis === "y") target.y += (val / H) * 100 * 2;
+      else if (axis === "s") {
+        if (targetKey === "toolbar" || targetKey.startsWith("panel")) target.s = Math.max(0.5, Math.min(2.0, target.s + val));
+        else if (targetKey === "number") { target.s += (val / W) * 100 * 2; }
+        else if (targetKey === "visor" || targetKey === "footer") { cfg.visor.s = Math.max(5, cfg.visor.s + val); cfg.footer.s = cfg.visor.s; }
+        else target.s += val;
+      }
+      else if (axis === "h" && targetKey === "number") { target.h += (val / H) * 100 * 2; }
+      else if (axis === "o") {
+        const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val));
+        if (targetKey === "visor" || targetKey === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; }
+        else target.o = newVal;
+      }
     }
     applyCfg();
+    updateAdjustUI();
+    if (mode === "train") loadTrain(trainNum);
   };
 
   window.toggleEmoji = () => { cfg.visor.useEmoji = !cfg.visor.useEmoji; applyCfg(); };
   window.toggleInvertOrder = () => { cfg.visor.inverted = !cfg.visor.inverted; applyCfg(); };
-  // Duração fixada em 1.0s conforme solicitado
   cfg.peekDuration = 1.0;
 
   window.editTargetText = () => {
@@ -437,24 +460,13 @@
     if (n !== null) { target.text = n; applyCfg(); }
   };
 
-  window.openTrainPanel = () => { window.setTarget('panelTrain'); closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum || 1); applyCfg(); };
-  window.toggleTrain = () => { 
-    mode = "draw"; 
-    trainPanel.classList.add("hidden"); 
-    applyCfg(); 
-    render(); 
-  };
+  window.openTrainPanel = () => { window.setTarget('panelTrain'); closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum || 1); updateAdjustUI(); applyCfg(); };
+  window.toggleTrain = () => { mode = "draw"; trainPanel.classList.add("hidden"); applyCfg(); render(); };
   window.setAdjustMode = (m) => {
     adjustMode = m;
     document.getElementById("modeNumBtn").classList.toggle("active", m === 'number');
     document.getElementById("modePanelBtn").classList.toggle("active", m === 'panel');
-  };
-  window.handleAdjust = (axis, val) => { if (adjustMode === 'number') window.adjustNumber(axis, val); else { adjTarget = "panelTrain"; window.adjust(axis, val); } };
-  window.adjustNumber = (axis, val) => {
-    const target = cfg.number; const pctX = (val / W) * 100, pctY = (val / H) * 100;
-    if (axis === "x") target.x += pctX * 2; if (axis === "y") target.y += pctY * 2;
-    if (axis === "s") { target.s += pctX * 2; target.h += pctY * 2; }
-    applyCfg(); if (mode === "train") loadTrain(trainNum);
+    updateAdjustUI();
   };
 
   const loadTrain = (n) => { 
