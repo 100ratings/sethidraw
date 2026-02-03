@@ -187,28 +187,52 @@
     document.getElementById("undoBtn").onclick = (e) => { e.stopPropagation(); strokes.pop(); render(); };
     document.getElementById("clearBtn").onclick = (e) => { e.stopPropagation(); strokes = []; render(); };
 
-    window.onpointerdown = (e) => {
-      if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
-      const p = getPt(e); e.preventDefault();
-      if (mode === "swipe") { swipeData.start = p; return; }
-      currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
-    };
+    let dragData = { active: false, startX: 0, startY: 0, initialX: 0, initialY: 0, axis: null, target: null };
 
-    window.onpointermove = (e) => {
-      if (!currentStroke) return;
-      const p = getPt(e); e.preventDefault();
-      currentStroke.p.push(p);
-      drawSeg(currentStroke.p[currentStroke.p.length-2], p, currentStroke.c);
-    };
-
-    window.onpointerup = (e) => {
-      if (mode === "swipe" && swipeData.start) {
-        const arrow = getArrow(swipeData.start, getPt(e));
-        swipeData.start = null;
-        if (arrow) { swipeData.arrows.push(arrow); updateVisorProgress(); visor.style.opacity = cfg.visor.o; if (swipeData.arrows.length === 7) resolveSwipe(); }
+  window.onpointerdown = (e) => {
+    const stepperBtn = e.target.closest(".stepper-btn");
+    if (stepperBtn) {
+      const onclick = stepperBtn.getAttribute("onclick");
+      const match = onclick.match(/window\.adjust\('([^']*)', ([-.0-9]*), '([^']*)'\)/);
+      if (match) {
+        e.preventDefault();
+        const [_, axis, val, targetKey] = match;
+        dragData = { active: true, startX: e.clientX, startY: e.clientY, initialVal: cfg[targetKey][axis], axis, targetKey };
+        window.adjust(axis, parseFloat(val), targetKey);
+        return;
       }
-      if (currentStroke) { strokes.push(currentStroke); currentStroke = null; render(); }
-    };
+    }
+
+    if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
+    const p = getPt(e); e.preventDefault();
+    if (mode === "swipe") { swipeData.start = p; return; }
+    currentStroke = { c: mode === "train" ? "#111111" : color, p: [p] };
+  };
+
+  window.onpointermove = (e) => {
+    if (dragData.active) {
+      const dx = e.clientX - dragData.startX;
+      const dy = e.clientY - dragData.startY;
+      const delta = Math.abs(dx) > Math.abs(dy) ? dx : -dy;
+      const sensitivity = (dragData.axis === 's' && (dragData.targetKey.startsWith('panel') || dragData.targetKey === 'toolbar')) || dragData.axis === 'o' ? 0.005 : 0.2;
+      const newVal = dragData.initialVal + delta * sensitivity;
+      window.adjustDirect(dragData.axis, newVal, dragData.targetKey);
+      return;
+    }
+    if (!currentStroke) return;
+    const p = getPt(e); e.preventDefault();
+    currentStroke.p.push(p);
+    drawSeg(currentStroke.p[currentStroke.p.length-2], p, currentStroke.c);
+  };
+
+  window.onpointerup = (e) => {
+    if (dragData.active) { dragData.active = false; return; }
+    if (mode === "swipe" && swipeData.start) {
+      const arrow = getArrow(swipeData.start, getPt(e));
+      swipeData.start = null;
+      if (arrow) { swipeData.arrows.push(arrow); updateVisorProgress(); visor.style.opacity = cfg.visor.o; if (swipeData.arrows.length === 7) resolveSwipe(); }
+    }
+    if (currentStroke) { strokes.push(currentStroke); currentStroke = null; render(); }
   };
 
   const getPt = (e) => { const r = board.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
@@ -453,15 +477,15 @@
     if (isSlider) {
       target[axis] = val;
     } else {
-      if (axis === "x") target.x += (val / W) * 100 * 2;
-      else if (axis === "y") target.y += (val / H) * 100 * 2;
+      if (axis === "x") target.x += val;
+      else if (axis === "y") target.y += val;
       else if (axis === "s") {
         if (targetKey === "toolbar" || targetKey.startsWith("panel")) target.s = Math.max(0.5, Math.min(2.0, target.s + val));
-        else if (targetKey === "number") { target.s += (val / W) * 100 * 2; }
+        else if (targetKey === "number") { target.s += val; }
         else if (targetKey === "visor" || targetKey === "footer") { cfg.visor.s = Math.max(5, cfg.visor.s + val); cfg.footer.s = cfg.visor.s; }
         else target.s += val;
       }
-      else if (axis === "h" && targetKey === "number") { target.h += (val / H) * 100 * 2; }
+      else if (axis === "h" && targetKey === "number") { target.h += val; }
       else if (axis === "o") {
         const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val));
         if (targetKey === "visor" || targetKey === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; }
