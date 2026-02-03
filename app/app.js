@@ -19,6 +19,8 @@
   let currentStroke = null;
   let swipeData = { start: null, arrows: [] };
   let cardInputData = { rank: "", suit: "", digits: "" };
+  let tempTopCard = null; // Armazena a carta do topo temporária (botão amarelo)
+  let isYellowSwipe = false; // Indica se o swipe atual é do botão amarelo
   
   let tapCounts = { red: 0, yellow: 0 };
   let lastTapTimes = { red: 0, yellow: 0 };
@@ -145,6 +147,10 @@
 
     document.getElementById("toggleEmojiBtn").textContent = `Símbolos de Naipes: ${cfg.visor.useEmoji ? 'ON' : 'OFF'}`;
     document.getElementById("inputSwipeBtn").classList.toggle("active", cfg.inputType === "swipe");
+    document.getElementById("swatchGroup").querySelectorAll(".swatch").forEach(s => {
+      if (s.dataset.color === "#FF3B30") s.classList.toggle("swipe-active", mode === "swipe" && !isYellowSwipe);
+      if (s.dataset.color === "#F7C600") s.classList.toggle("swipe-active", mode === "swipe" && isYellowSwipe);
+    });
     document.getElementById("inputCardsBtn").classList.toggle("active", cfg.inputType === "cards");
     document.getElementById("invertOrderBtn").textContent = cfg.visor.inverted ? "Ordem: 05 4H → 4H 05" : "Ordem: 4H 05 → 05 4H";
     document.getElementById("togglePeekStyleBtn").textContent = `Estilo: ${cfg.visor.peekStyle === 'cardOnly' ? 'Apenas Carta' : 'Carta + Posição'}`;
@@ -180,12 +186,43 @@
           if (cfg.inputType === "cards") window.toggleCards(false);
           else updateTap('red', 1, toggleSwipe);
         }
-        if (c === "#F7C600") updateTap('yellow', 5, toggleSetup);
+        if (c === "#F7C600") {
+          const key = 'yellow';
+          if (now - lastTapTimes[key] < 500) tapCounts[key]++;
+          else tapCounts[key] = 1;
+          lastTapTimes[key] = now;
+          
+          // Limpar qualquer timer de execução única se um novo toque vier rápido
+          if (window.yellowTapTimer) clearTimeout(window.yellowTapTimer);
+          
+          if (tapCounts[key] >= 5) {
+            toggleSetup();
+            tapCounts[key] = 0;
+          } else {
+            // Esperar um pouco para ver se haverá mais toques (para o setup)
+            // Se não houver, executa a função de 1 toque (swipe de topo)
+            window.yellowTapTimer = setTimeout(() => {
+              if (tapCounts[key] === 1) {
+                toggleYellowSwipe();
+              }
+              tapCounts[key] = 0;
+            }, 300);
+          }
+        }
       };
     });
 
     document.getElementById("undoBtn").onclick = (e) => { e.stopPropagation(); strokes.pop(); render(); };
-    document.getElementById("clearBtn").onclick = (e) => { e.stopPropagation(); strokes = []; render(); };
+    document.getElementById("clearBtn").onclick = (e) => { 
+      e.stopPropagation(); 
+      strokes = []; 
+      swipeData.arrows = []; 
+      if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
+      if (mode === "cards") window.toggleCards();
+      tempTopCard = null;
+      applyCfg();
+      render(); 
+    };
 
     let dragData = { active: false, startX: 0, startY: 0, initialX: 0, initialY: 0, axis: null, target: null };
 
@@ -230,7 +267,13 @@
     if (mode === "swipe" && swipeData.start) {
       const arrow = getArrow(swipeData.start, getPt(e));
       swipeData.start = null;
-      if (arrow) { swipeData.arrows.push(arrow); updateVisorProgress(); visor.style.opacity = cfg.visor.o; if (swipeData.arrows.length === 7) resolveSwipe(); }
+      if (arrow) { 
+        swipeData.arrows.push(arrow); 
+        updateVisorProgress(); 
+        visor.style.opacity = cfg.visor.o; 
+        const targetLen = isYellowSwipe ? 3 : 7;
+        if (swipeData.arrows.length === targetLen) resolveSwipe(); 
+      }
     }
     if (currentStroke) { strokes.push(currentStroke); currentStroke = null; render(); }
   };
@@ -260,8 +303,8 @@
 
   const formatCard = (card) => {
     const rank = card.slice(0, -1); const suit = card.slice(-1);
-    const emoji = {"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[suit] || suit;
-    return rank + emoji;
+    const suitDisplay = cfg.visor.useEmoji ? ({"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[suit] || suit) : suit;
+    return rank + suitDisplay;
   };
 
   const updateVisorProgress = () => {
@@ -270,7 +313,7 @@
       const rank = {"↑→":"A","→↑":"2","→→":"3","→↓":"4","↓→":"5","↓↓":"6","↓←":"7","←↓":"8","←←":"9","←↑":"10","↑←":"J","↑↑":"Q","↑↓":"K"}[arr[0]+arr[1]];
       const suit = {"↑":"S","→":"H","↓":"C","←":"D"}[arr[2]];
       const card = (rank && suit) ? formatCard(rank+suit) : "??";
-      if (len === 3) content = card;
+      if (len === 3) content = isYellowSwipe ? `TOPO: ${card}` : card;
       else if (len >= 5) {
         const dec = {"↑↑":0,"↑→":10,"→↑":20,"→→":"30","→↓":40,"↓→":50}[arr[3]+arr[4]];
         const decStr = dec !== undefined ? (dec/10).toString() : "?";
@@ -290,15 +333,25 @@
     const rank = {"↑→":"A","→↑":"2","→→":"3","→↓":"4","↓→":"5","↓↓":"6","↓←":"7","←↓":"8","←←":"9","←↑":"10","↑←":"J","↑↑":"Q","↑↓":"K"}[arr[0]+arr[1]];
     const suit = {"↑":"S","→":"H","↓":"C","←":"D"}[arr[2]];
     const card = (rank && suit) ? rank+suit : "";
-    const dec = {"↑↑":0,"↑→":10,"→↑":20,"→→":30,"→↓":40,"↓→":50}[arr[3]+arr[4]];
-    const unt = {"↑↑":0,"↑→":1,"→↑":2,"→→":3,"→↓":4,"↓→":5,"↓↓":6,"↓←":7,"←↓":8,"←←":"9"}[arr[5]+arr[6]];
-    const num = (dec !== undefined && unt !== undefined) ? parseInt(dec) + parseInt(unt) : 0;
-    processResult(card, num);
+    
+    if (isYellowSwipe) {
+      if (card) {
+        tempTopCard = card;
+        visorL1.textContent = `TOPO: ${formatCard(card)}`;
+      } else {
+        visorL1.textContent = "ERRO";
+      }
+    } else {
+      const dec = {"↑↑":0,"↑→":10,"→↑":20,"→→":30,"→↓":40,"↓→":50}[arr[3]+arr[4]];
+      const unt = {"↑↑":0,"↑→":1,"→↑":2,"→→":3,"→↓":4,"↓→":5,"↓↓":6,"↓←":7,"←↓":8,"←←":"9"}[arr[5]+arr[6]];
+      const num = (dec !== undefined && unt !== undefined) ? parseInt(dec) + parseInt(unt) : 0;
+      processResult(card, num);
+    }
     
     clearTimeout(peekTimer);
     peekTimer = setTimeout(() => { 
       if (mode !== "setup" && mode !== "cards" && mode !== "train") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); }
-      swipeData.arrows = []; if (mode === "swipe") mode = "draw"; 
+      swipeData.arrows = []; if (mode === "swipe") { mode = "draw"; isYellowSwipe = false; }
     }, cfg.peekDuration * 1000);
   };
 
@@ -306,7 +359,19 @@
     if (!card || num < 1 || num > 52) { visorL1.textContent = "ERRO"; lastResult = "ERRO"; }
     else {
       const pos = posMap[card]; const cut = ((pos - num % 52) + 52) % 52; const cutNum = (cut === 0 ? 52 : cut);
-      const cardStr = formatCard(STACK[cutNum-1]); const numStr = cutNum.toString().padStart(2, '0');
+      const cardResult = STACK[cutNum-1];
+      const cardStr = formatCard(cardResult); 
+      
+      // Cálculo da posição no topo temporário
+      let numStr = cutNum.toString().padStart(2, '0');
+      if (tempTopCard) {
+        const topPos = posMap[tempTopCard];
+        const newPos = ((posMap[cardResult] - topPos + 1) + 52) % 52;
+        const finalNewPos = (newPos === 0 ? 52 : newPos);
+        numStr = finalNewPos.toString().padStart(2, '0');
+        tempTopCard = null; // Reset automático após o cálculo
+      }
+      
       const peekResult = cfg.visor.peekStyle === "cardOnly" ? cardStr : (cfg.visor.inverted ? `${numStr} ${cardStr}` : `${cardStr} ${numStr}`);
       visorL1.textContent = peekResult; lastResult = peekResult;
       const ZZ_raw = cutNum.toString().padStart(2, '0'); const ZZ = ZZ_raw[0] + "." + ZZ_raw[1]; 
@@ -330,9 +395,17 @@
   };
 
   const toggleSwipe = () => {
-    if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; }
-    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = "."; }
+    if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
+    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = "."; isYellowSwipe = false; }
     swipeData.arrows = [];
+    applyCfg();
+  };
+
+  const toggleYellowSwipe = () => {
+    if (mode === "swipe" && isYellowSwipe) { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
+    else { closeOtherPanels(); mode = "swipe"; visor.style.opacity = cfg.visor.o; visorL1.textContent = "."; isYellowSwipe = true; }
+    swipeData.arrows = [];
+    applyCfg();
   };
 
   window.toggleCards = (isAdjust = false) => {
@@ -350,7 +423,8 @@
 
   const closeOtherPanels = () => {
     setupPanel.classList.add("hidden"); trainPanel.classList.add("hidden"); cardsPanel.classList.add("hidden");
-    if (mode === "swipe") mode = "draw";
+    if (mode === "swipe") { mode = "draw"; isYellowSwipe = false; }
+    applyCfg();
   };
 
   window.selectCardPart = (type, val) => {
@@ -597,7 +671,8 @@
     if (!blueBtn) return;
     let holdTimer = null;
     const startBluePeek = (e) => {
-      holdTimer = setTimeout(() => { blueBtn.dataset.isHolding = "true"; if (mode === "draw") { visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); } }, 200);
+      if (e.cancelable) e.preventDefault();
+      holdTimer = setTimeout(() => { blueBtn.dataset.isHolding = "true"; if (mode === "draw") { visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); } }, 150);
     };
     const stopBluePeek = (e) => {
       clearTimeout(holdTimer);
