@@ -60,6 +60,10 @@
     cfg.panelSetup.label = "Painel de Configurações";
     cfg.panelTrain.label = "Desenhos de Números";
     cfg.panelCards.label = "Painel de Cartas";
+    
+    // Sincronizar opacidade e tamanho entre visor e footer
+    if (cfg.visor.o !== cfg.footer.o) cfg.footer.o = cfg.visor.o;
+    if (cfg.visor.s !== cfg.footer.s) cfg.footer.s = cfg.visor.s;
   };
   ensureCfg();
 
@@ -181,6 +185,20 @@
     document.getElementById("clearBtn").onclick = (e) => { e.stopPropagation(); strokes = []; render(); };
 
     window.onpointerdown = (e) => {
+      // Fechar modais ao clicar fora (backdrop)
+      if (mode === "setup" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
+        window.toggleSetup();
+        return;
+      }
+      if (mode === "train" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
+        window.toggleTrain();
+        return;
+      }
+      if (mode === "cards" && !e.target.closest(".panel") && !e.target.closest("#toolbar")) {
+        window.toggleCards();
+        return;
+      }
+      
       if (e.target.closest("#toolbar") || e.target.closest(".panel") || e.target.closest("#activationScreen") || e.target.closest("#installScreen") || e.target.closest("#orientationWarning")) return;
       const p = getPt(e); e.preventDefault();
       if (mode === "swipe") { swipeData.start = p; return; }
@@ -362,11 +380,14 @@
   const renderStepper = (parent, label, axis, targetKey, step) => {
     const val = cfg[targetKey][axis];
     const displayVal = axis === 's' || axis === 'o' ? val.toFixed(2) : Math.round(val);
+    const inputId = `input_${targetKey}_${axis}_${Date.now()}`;
     const html = `
       <div class="stepper-control">
         <span class="stepper-label">${label}</span>
         <button class="stepper-btn" onclick="window.adjust('${axis}', -${step}, '${targetKey}')">-</button>
-        <span class="stepper-value">${displayVal}</span>
+        <input type="number" class="stepper-input" id="${inputId}" value="${displayVal}" 
+               onchange="window.adjustDirect('${axis}', this.value, '${targetKey}')" 
+               onclick="this.select()" step="${step}" />
         <button class="stepper-btn" onclick="window.adjust('${axis}', ${step}, '${targetKey}')">+</button>
       </div>
     `;
@@ -419,7 +440,20 @@
     }
 
     if (opacityContainer && (adjTarget === 'visor' || adjTarget === 'footer' || adjTarget.startsWith('panel'))) {
-      renderSlider(opacityContainer, 'Opacidade', 'o', adjTarget, 0.05, 1, 0.01);
+      const val = cfg[adjTarget].o || 0.5;
+      const displayVal = Math.round(val * 100);
+      const inputId = `input_opacity_${Date.now()}`;
+      const html = `
+        <div class="stepper-control">
+          <span class="stepper-label">Opacidade (%)</span>
+          <button class="stepper-btn" onclick="window.adjust('o', -0.05, '${adjTarget}')">-</button>
+          <input type="number" class="stepper-input" id="${inputId}" value="${displayVal}" min="5" max="100" step="1"
+                 onchange="window.adjustDirect('o', parseFloat(this.value) / 100, '${adjTarget}')" 
+                 onclick="this.select()" />
+          <button class="stepper-btn" onclick="window.adjust('o', 0.05, '${adjTarget}')">+</button>
+        </div>
+      `;
+      opacityContainer.innerHTML = html;
     }
   };
 
@@ -443,6 +477,39 @@
         const newVal = Math.max(0.05, Math.min(1.0, (target.o || 0.5) + val));
         if (targetKey === "visor" || targetKey === "footer") { cfg.visor.o = newVal; cfg.footer.o = newVal; }
         else target.o = newVal;
+      }
+    }
+    applyCfg();
+    updateAdjustUI();
+    if (mode === "train") loadTrain(trainNum);
+  };
+
+  window.adjustDirect = (axis, inputVal, targetKey = adjTarget) => {
+    if (mode === 'train' && adjustMode === 'number') targetKey = 'number';
+    const target = cfg[targetKey]; if (!target) return;
+    const val = parseFloat(inputVal);
+    if (isNaN(val)) return;
+
+    if (axis === "x" || axis === "y") {
+      target[axis] = val;
+    } else if (axis === "s") {
+      if (targetKey === "toolbar" || targetKey.startsWith("panel")) {
+        target.s = Math.max(0.5, Math.min(2.0, val));
+      } else if (targetKey === "visor" || targetKey === "footer") {
+        cfg.visor.s = Math.max(5, val);
+        cfg.footer.s = cfg.visor.s;
+      } else {
+        target.s = val;
+      }
+    } else if (axis === "h" && targetKey === "number") {
+      target.h = val;
+    } else if (axis === "o") {
+      const newVal = Math.max(0.05, Math.min(1.0, val));
+      if (targetKey === "visor" || targetKey === "footer") {
+        cfg.visor.o = newVal;
+        cfg.footer.o = newVal;
+      } else {
+        target.o = newVal;
       }
     }
     applyCfg();
