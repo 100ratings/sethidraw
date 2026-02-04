@@ -463,7 +463,7 @@ html, body {
 
 /* Media query para landscape */
 @media (orientation: landscape) {
-  body {
+  :root {
     --current-scale: var(--scale-landscape);
   }
   
@@ -472,7 +472,6 @@ html, body {
     top: auto;
     bottom: 20px;
     left: 50%;
-    transform: translateX(-50%) scale(var(--scale-landscape));
     min-width: 280px;
     height: 54px;
     border-radius: 27px;
@@ -493,15 +492,9 @@ html, body {
   /* Ajustar painéis para landscape */
   .panel {
     top: 50%;
-    transform: translate(-50%, -50%) scale(var(--scale-landscape));
     max-width: 85%;
     max-height: 85vh;
     width: 360px;
-  }
-  
-  /* Ajustar visor e footer para landscape */
-  .visor-container, .footer-container {
-    transform: translateX(-50%) scale(var(--scale-landscape));
   }
   
   /* Ajustar telas de ativação e instalação para landscape */
@@ -530,20 +523,7 @@ html, body {
 
 /* Media query para portrait */
 @media (orientation: portrait) {
-  body {
+  :root {
     --current-scale: var(--scale-portrait);
-  }
-  
-  /* Aplicar escala portrait aos elementos principais */
-  #toolbar {
-    transform: translateX(-50%) scale(var(--scale-portrait));
-  }
-  
-  .panel {
-    transform: translateX(-50%) scale(var(--scale-portrait));
-  }
-  
-  .visor-container, .footer-container {
-    transform: translateX(-50%) scale(var(--scale-portrait));
   }
 }

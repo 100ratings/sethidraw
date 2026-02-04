@@ -137,6 +137,7 @@
     visor.style.top = (cfg.visor.y * H / 100) + "px";
     visor.style.fontSize = cfg.visor.s + "px";
     visor.style.lineHeight = cfg.visor.lh;
+    visor.style.transform = `translateX(-50%) scale(var(--current-scale, 1))`;
     
     if (mode === "setup" || mode === "train" || mode === "cards") {
       visor.style.opacity = cfg.visor.o;
@@ -167,6 +168,7 @@
     footer.style.top = (cfg.footer.y * H / 100) + "px";
     footer.style.fontSize = cfg.footer.s + "px";
     footer.style.opacity = cfg.footer.o;
+    footer.style.transform = `translateX(-50%) scale(var(--current-scale, 1))`;
     
     // Preservação Total: O footer (Peek de Apoio) SEMPRE mantém o último resultado se existir.
     // Ele não deve sumir ou resetar para o texto padrão ao tocar no vermelho ou lixeira.
@@ -180,7 +182,8 @@
         if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
         el.style.left = (c.x * W / 100) + "px";
         el.style.top = (c.y * H / 100) + "px";
-        el.style.transform = `translateX(-50%) scale(${c.s})`;
+        // Escala agora é controlada via CSS Variables (--current-scale) para independência total entre Portrait e Landscape
+        el.style.transform = `translateX(-50%) scale(${c.s} * var(--current-scale, 1))`;
         if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
       }
     });
