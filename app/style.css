@@ -3,6 +3,8 @@
   --glass: rgba(124, 124, 124, 0.85);
   --accent: #007AFF;
   --text-dim: rgba(0, 0, 0, 0.3);
+  --scale-portrait: 1;
+  --scale-landscape: 1;
 }
 
 * { 
@@ -59,7 +61,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 85%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--current-scale, 1));
   height: 62px;
   min-width: 320px;
   max-width: 95%;
@@ -160,7 +162,7 @@ html, body {
   transition: opacity 0.2s ease;
   white-space: pre-wrap;
   width: 300px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--current-scale, 1));
   line-height: 1.1;
 }
 
@@ -177,7 +179,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 30%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--current-scale, 1));
   width: 380px;
   max-width: 90%;
   max-height: 80vh;
@@ -459,15 +461,8 @@ html, body {
 
 /* ==================== SUPORTE A LANDSCAPE ==================== */
 
-/* Variáveis CSS para escalas de orientação */
-:root {
-  --scale-portrait: 1;
-  --scale-landscape: 1;
-}
-
 /* Media query para landscape */
 @media (orientation: landscape) {
-  /* Aplicar escala landscape ao body */
   body {
     --current-scale: var(--scale-landscape);
   }
@@ -551,13 +546,4 @@ html, body {
   .visor-container, .footer-container {
     transform: translateX(-50%) scale(var(--scale-portrait));
   }
-}
-
-/* Classe para aplicar escala dinâmica via JavaScript */
-.landscape-mode {
-  --current-scale: var(--scale-landscape);
-}
-
-.portrait-mode {
-  --current-scale: var(--scale-portrait);
 }

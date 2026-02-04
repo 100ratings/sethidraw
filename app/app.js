@@ -202,6 +202,10 @@
       btn.classList.toggle("active", btn.dataset.target === adjTarget);
     });
 
+    saveCfg();
+  };
+
+  const saveCfg = () => {
     localStorage.setItem("mnem_v6_cfg", JSON.stringify(cfg));
   };
 
@@ -836,7 +840,7 @@
     }
     applyOrientationScales();
     updateAdjustUI();
-    saveCfg();
+    applyCfg();
   };
 
   window.adjustOrientationScaleDirect = (orientation, value) => {
@@ -849,7 +853,7 @@
     }
     applyOrientationScales();
     updateAdjustUI();
-    saveCfg();
+    applyCfg();
   };
 
   init();
