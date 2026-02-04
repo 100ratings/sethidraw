@@ -456,3 +456,108 @@ html, body {
   border-radius: 10px;
   padding: 6px 10px;
 }
+
+/* ==================== SUPORTE A LANDSCAPE ==================== */
+
+/* Variáveis CSS para escalas de orientação */
+:root {
+  --scale-portrait: 1;
+  --scale-landscape: 1;
+}
+
+/* Media query para landscape */
+@media (orientation: landscape) {
+  /* Aplicar escala landscape ao body */
+  body {
+    --current-scale: var(--scale-landscape);
+  }
+  
+  /* Ajustar toolbar para landscape */
+  #toolbar {
+    top: auto;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) scale(var(--scale-landscape));
+    min-width: 280px;
+    height: 54px;
+    border-radius: 27px;
+  }
+  
+  .tool-item {
+    height: 40px;
+    width: 40px;
+    border-radius: 20px;
+  }
+  
+  .swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+  }
+  
+  /* Ajustar painéis para landscape */
+  .panel {
+    top: 50%;
+    transform: translate(-50%, -50%) scale(var(--scale-landscape));
+    max-width: 85%;
+    max-height: 85vh;
+    width: 360px;
+  }
+  
+  /* Ajustar visor e footer para landscape */
+  .visor-container, .footer-container {
+    transform: translateX(-50%) scale(var(--scale-landscape));
+  }
+  
+  /* Ajustar telas de ativação e instalação para landscape */
+  #activationScreen, #installScreen {
+    padding: 15px;
+  }
+  
+  .activation-container {
+    max-width: 450px;
+    padding: 30px 25px;
+  }
+  
+  .activation-logo {
+    font-size: 40px;
+  }
+  
+  .activation-title {
+    font-size: 22px;
+  }
+  
+  /* Remover aviso de orientação em landscape */
+  #orientationWarning {
+    display: none !important;
+  }
+}
+
+/* Media query para portrait */
+@media (orientation: portrait) {
+  body {
+    --current-scale: var(--scale-portrait);
+  }
+  
+  /* Aplicar escala portrait aos elementos principais */
+  #toolbar {
+    transform: translateX(-50%) scale(var(--scale-portrait));
+  }
+  
+  .panel {
+    transform: translateX(-50%) scale(var(--scale-portrait));
+  }
+  
+  .visor-container, .footer-container {
+    transform: translateX(-50%) scale(var(--scale-portrait));
+  }
+}
+
+/* Classe para aplicar escala dinâmica via JavaScript */
+.landscape-mode {
+  --current-scale: var(--scale-landscape);
+}
+
+.portrait-mode {
+  --current-scale: var(--scale-portrait);
+}

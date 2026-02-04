@@ -43,7 +43,9 @@
     panelTrain: { x: 50, y: 30, s: 1, o: 0.6, label: "Desenhos de Números" },
     panelCards: { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Cartas" },
     inputType: "swipe",
-    peekDuration: 1.0
+    peekDuration: 1.0,
+    scalePortrait: 1.0,
+    scaleLandscape: 1.0
   }));
 
   const ensureCfg = () => {
@@ -57,6 +59,8 @@
     if (!cfg.panelSetup) cfg.panelSetup = { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Configurações" };
     if (!cfg.panelTrain) cfg.panelTrain = { x: 50, y: 30, s: 1, o: 0.6, label: "Desenhos de Números" };
     if (!cfg.panelCards) cfg.panelCards = { x: 50, y: 30, s: 1, o: 0.6, label: "Painel de Cartas" };
+    if (cfg.scalePortrait === undefined) cfg.scalePortrait = 1.0;
+    if (cfg.scaleLandscape === undefined) cfg.scaleLandscape = 1.0;
     
     cfg.visor.label = "Peek Principal";
     cfg.footer.label = "Peek de Apoio";
@@ -86,10 +90,28 @@
     updateAdjustUI();
   };
 
+  const applyOrientationScales = () => {
+    const root = document.documentElement;
+    root.style.setProperty('--scale-portrait', cfg.scalePortrait);
+    root.style.setProperty('--scale-landscape', cfg.scaleLandscape);
+  };
+
   const checkOrientation = () => {
+    // Suporte a landscape adicionado - não bloqueia mais a orientação
     const warning = document.getElementById("orientationWarning");
-    if (window.innerWidth > window.innerHeight) { warning.classList.remove("hidden"); }
-    else { warning.classList.add("hidden"); }
+    warning.classList.add("hidden"); // Sempre oculta o aviso
+    
+    // Aplicar classe de orientação ao body para CSS
+    if (window.innerWidth > window.innerHeight) {
+      document.body.classList.add('landscape-mode');
+      document.body.classList.remove('portrait-mode');
+    } else {
+      document.body.classList.add('portrait-mode');
+      document.body.classList.remove('landscape-mode');
+    }
+    
+    // Aplicar escalas CSS
+    applyOrientationScales();
   };
 
   const onResize = () => {
@@ -537,11 +559,13 @@
     const trainContainer = document.getElementById("trainAdjusts");
     const cardsContainer = document.getElementById("cardsAdjusts");
     const opacityContainer = document.getElementById("opacitySlider");
+    const orientationScalesContainer = document.getElementById("orientationScales");
 
     if (setupContainer) setupContainer.innerHTML = "";
     if (trainContainer) trainContainer.innerHTML = "";
     if (cardsContainer) cardsContainer.innerHTML = "";
     if (opacityContainer) opacityContainer.innerHTML = "";
+    if (orientationScalesContainer) orientationScalesContainer.innerHTML = "";
 
     const currentContainer = mode === 'setup' ? setupContainer : (mode === 'train' ? trainContainer : cardsContainer);
     if (!currentContainer) return;
@@ -583,6 +607,33 @@
         </div>
       `;
       opacityContainer.innerHTML = html;
+    }
+
+    // Renderizar controles de escala de orientação (apenas no modo setup)
+    if (orientationScalesContainer && mode === 'setup') {
+      const portraitVal = (cfg.scalePortrait * 100).toFixed(0);
+      const landscapeVal = (cfg.scaleLandscape * 100).toFixed(0);
+      const htmlPortrait = `
+        <div class="stepper-control">
+          <span class="stepper-label">Portrait (%)</span>
+          <button class="stepper-btn" onclick="window.adjustOrientationScale('portrait', -0.05)">-</button>
+          <input type="number" class="stepper-input" value="${portraitVal}" min="50" max="150" step="5"
+                 onchange="window.adjustOrientationScaleDirect('portrait', parseFloat(this.value) / 100)" 
+                 onclick="this.select()" />
+          <button class="stepper-btn" onclick="window.adjustOrientationScale('portrait', 0.05)">+</button>
+        </div>
+      `;
+      const htmlLandscape = `
+        <div class="stepper-control">
+          <span class="stepper-label">Landscape (%)</span>
+          <button class="stepper-btn" onclick="window.adjustOrientationScale('landscape', -0.05)">-</button>
+          <input type="number" class="stepper-input" value="${landscapeVal}" min="50" max="150" step="5"
+                 onchange="window.adjustOrientationScaleDirect('landscape', parseFloat(this.value) / 100)" 
+                 onclick="this.select()" />
+          <button class="stepper-btn" onclick="window.adjustOrientationScale('landscape', 0.05)">+</button>
+        </div>
+      `;
+      orientationScalesContainer.innerHTML = htmlPortrait + htmlLandscape;
     }
   };
 
@@ -774,6 +825,31 @@
     const startPeek = () => panel.classList.add("transparent-peek"); const stopPeek = () => panel.classList.remove("transparent-peek");
     btn.addEventListener("mousedown", startPeek); window.addEventListener("mouseup", stopPeek);
     btn.addEventListener("touchstart", startPeek, { passive: true }); btn.addEventListener("touchend", stopPeek, { passive: true });
+  };
+
+  // Funções de ajuste de escala de orientação
+  window.adjustOrientationScale = (orientation, delta) => {
+    if (orientation === 'portrait') {
+      cfg.scalePortrait = Math.max(0.5, Math.min(1.5, cfg.scalePortrait + delta));
+    } else if (orientation === 'landscape') {
+      cfg.scaleLandscape = Math.max(0.5, Math.min(1.5, cfg.scaleLandscape + delta));
+    }
+    applyOrientationScales();
+    updateAdjustUI();
+    saveCfg();
+  };
+
+  window.adjustOrientationScaleDirect = (orientation, value) => {
+    const val = parseFloat(value);
+    if (isNaN(val)) return;
+    if (orientation === 'portrait') {
+      cfg.scalePortrait = Math.max(0.5, Math.min(1.5, val));
+    } else if (orientation === 'landscape') {
+      cfg.scaleLandscape = Math.max(0.5, Math.min(1.5, val));
+    }
+    applyOrientationScales();
+    updateAdjustUI();
+    saveCfg();
   };
 
   init();
