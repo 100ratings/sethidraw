@@ -3,8 +3,6 @@
   --glass: rgba(124, 124, 124, 0.85);
   --accent: #007AFF;
   --text-dim: rgba(0, 0, 0, 0.3);
-  --scale-portrait: 1;
-  --scale-landscape: 1;
 }
 
 * { 
@@ -61,7 +59,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 85%;
-  transform: translateX(-50%) scale(var(--current-scale, 1));
+  transform: translateX(-50%);
   height: 62px;
   min-width: 320px;
   max-width: 95%;
@@ -162,7 +160,7 @@ html, body {
   transition: opacity 0.2s ease;
   white-space: pre-wrap;
   width: 300px;
-  transform: translateX(-50%) scale(var(--current-scale, 1));
+  transform: translateX(-50%);
   line-height: 1.1;
 }
 
@@ -179,7 +177,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 30%;
-  transform: translateX(-50%) scale(var(--current-scale, 1));
+  transform: translateX(-50%);
   width: 380px;
   max-width: 90%;
   max-height: 80vh;
@@ -457,73 +455,4 @@ html, body {
   background: rgba(0, 0, 0, 0.04);
   border-radius: 10px;
   padding: 6px 10px;
-}
-
-/* ==================== SUPORTE A LANDSCAPE ==================== */
-
-/* Media query para landscape */
-@media (orientation: landscape) {
-  :root {
-    --current-scale: var(--scale-landscape);
-  }
-  
-  /* Ajustar toolbar para landscape */
-  #toolbar {
-    top: auto;
-    bottom: 20px;
-    left: 50%;
-    min-width: 280px;
-    height: 54px;
-    border-radius: 27px;
-  }
-  
-  .tool-item {
-    height: 40px;
-    width: 40px;
-    border-radius: 20px;
-  }
-  
-  .swatch {
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
-  }
-  
-  /* Ajustar painéis para landscape */
-  .panel {
-    top: 50%;
-    max-width: 85%;
-    max-height: 85vh;
-    width: 360px;
-  }
-  
-  /* Ajustar telas de ativação e instalação para landscape */
-  #activationScreen, #installScreen {
-    padding: 15px;
-  }
-  
-  .activation-container {
-    max-width: 450px;
-    padding: 30px 25px;
-  }
-  
-  .activation-logo {
-    font-size: 40px;
-  }
-  
-  .activation-title {
-    font-size: 22px;
-  }
-  
-  /* Remover aviso de orientação em landscape */
-  #orientationWarning {
-    display: none !important;
-  }
-}
-
-/* Media query para portrait */
-@media (orientation: portrait) {
-  :root {
-    --current-scale: var(--scale-portrait);
-  }
 }
