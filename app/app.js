@@ -350,12 +350,18 @@
     if (drawPointerId !== null) return; // Já tem um dedo desenhando
     if (eyePointerId !== null && e.pointerId === eyePointerId) return; // Este é o dedo do olho
 
-    // 4. Restrição de Área (Não desenhar na toolbar ou abaixo dela)
+    // 4. Restrição de Área (Não desenhar abaixo dos botões da toolbar)
     const toolbarEl = document.getElementById("toolbar");
     if (toolbarEl && cfg.toolbar.visible) {
-      const rect = toolbarEl.getBoundingClientRect();
-      // Se o toque for na altura da toolbar ou abaixo dela, ignoramos o desenho
-      if (e.clientY >= rect.top) return;
+      const swatchGroup = document.getElementById("swatchGroup");
+      if (swatchGroup) {
+        const rect = swatchGroup.getBoundingClientRect();
+        // Se o toque for abaixo da base dos botões, ignoramos o desenho
+        if (e.clientY >= rect.bottom) return;
+      } else {
+        const rect = toolbarEl.getBoundingClientRect();
+        if (e.clientY >= rect.top) return;
+      }
     }
 
     // 5. Iniciar Desenho
@@ -378,15 +384,23 @@
   window.onpointermove = (e) => {
     if (drawPointerId !== null && e.pointerId !== drawPointerId) return;
 
-    // Se estiver desenhando, verificar se entrou na área da toolbar
+    // Se estiver desenhando, verificar se entrou na área proibida (abaixo dos botões)
     if (currentStroke) {
       const toolbarEl = document.getElementById("toolbar");
       if (toolbarEl && cfg.toolbar.visible) {
-        const rect = toolbarEl.getBoundingClientRect();
-        if (e.clientY >= rect.top) {
-          // Forçar o término do traço se entrar na área proibida
-          endPointer(e);
-          return;
+        const swatchGroup = document.getElementById("swatchGroup");
+        if (swatchGroup) {
+          const rect = swatchGroup.getBoundingClientRect();
+          if (e.clientY >= rect.bottom) {
+            endPointer(e);
+            return;
+          }
+        } else {
+          const rect = toolbarEl.getBoundingClientRect();
+          if (e.clientY >= rect.top) {
+            endPointer(e);
+            return;
+          }
         }
       }
     }
