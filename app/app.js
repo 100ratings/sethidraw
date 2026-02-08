@@ -350,7 +350,15 @@
     if (drawPointerId !== null) return; // Já tem um dedo desenhando
     if (eyePointerId !== null && e.pointerId === eyePointerId) return; // Este é o dedo do olho
 
-    // 4. Iniciar Desenho
+    // 4. Restrição de Área (Não desenhar na toolbar ou abaixo dela)
+    const toolbarEl = document.getElementById("toolbar");
+    if (toolbarEl && cfg.toolbar.visible) {
+      const rect = toolbarEl.getBoundingClientRect();
+      // Se o toque for na altura da toolbar ou abaixo dela, ignoramos o desenho
+      if (e.clientY >= rect.top) return;
+    }
+
+    // 5. Iniciar Desenho
     drawPointerId = e.pointerId;
     try { board.setPointerCapture(e.pointerId); } catch(e){}
 
@@ -369,6 +377,19 @@
 
   window.onpointermove = (e) => {
     if (drawPointerId !== null && e.pointerId !== drawPointerId) return;
+
+    // Se estiver desenhando, verificar se entrou na área da toolbar
+    if (currentStroke) {
+      const toolbarEl = document.getElementById("toolbar");
+      if (toolbarEl && cfg.toolbar.visible) {
+        const rect = toolbarEl.getBoundingClientRect();
+        if (e.clientY >= rect.top) {
+          // Forçar o término do traço se entrar na área proibida
+          endPointer(e);
+          return;
+        }
+      }
+    }
 
     if (dragData.active) {
       const dx = e.clientX - dragData.startX;
