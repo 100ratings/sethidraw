@@ -204,6 +204,7 @@
         if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
         el.style.left = (c.x * W / 100) + "px";
         el.style.top = (c.y * H / 100) + "px";
+        el.style.bottom = "auto";
         el.style.transform = `translateX(-50%) scale(${c.s})`;
         if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
       }

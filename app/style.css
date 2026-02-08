@@ -23,8 +23,8 @@ body {
 }
 
 html, body {
-  height: 100%;
-  width: 100%;
+  height: 100vh;
+  width: 100vw;
   margin: 0;
   padding: 0;
   background: var(--bg);
@@ -59,6 +59,7 @@ html, body {
   position: absolute;
   left: 50%;
   top: 85%;
+  bottom: auto;
   transform: translateX(-50%);
   height: 62px;
   min-width: 320px;
