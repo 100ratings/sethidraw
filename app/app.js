@@ -85,7 +85,8 @@
   const posMap = {}; STACK.forEach((c, i) => posMap[c] = i + 1);
 
   const init = () => {
-    window.addEventListener('resize', onResize);
+    window.addEventListener('resize', () => updateLayout(), { passive: true });
+    window.addEventListener('orientationchange', () => setTimeout(updateLayout, 50), { passive: true });
     updateLayout();
     bindEvents();
     createFloatingEyeBtn();
@@ -136,14 +137,10 @@
 
   const updateLayout = () => {
     W = window.innerWidth; H = window.innerHeight; DPR = window.devicePixelRatio || 1;
-    board.width = W * DPR; board.height = H * DPR;
     board.style.width = W + "px"; board.style.height = H + "px";
+    board.width = Math.round(W * DPR); board.height = Math.round(H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     applyCfg(); render(); checkOrientation();
-  };
-
-  const onResize = () => {
-    setTimeout(updateLayout, 100);
   };
 
   const getExamplePeek = () => {
