@@ -208,8 +208,9 @@
       if (el && c) {
         if (id === "toolbar") {
           el.style.display = c.visible ? "flex" : "none";
-          // Para a toolbar, deixamos o CSS fixed (bottom: 0 + safe-area) controlar a posição vertical
           el.style.left = (c.x * W / 100) + "px";
+          el.style.top = (c.y * H / 100) + "px";
+          el.style.bottom = "auto";
           el.style.transform = `translateX(-50%) scale(${c.s})`;
         } else {
           el.style.left = (c.x * W / 100) + "px";
