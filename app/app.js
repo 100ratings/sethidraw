@@ -136,11 +136,19 @@
   };
 
   const updateLayout = () => {
-    W = window.innerWidth; H = window.innerHeight; DPR = window.devicePixelRatio || 1;
-    board.style.width = W + "px"; board.style.height = H + "px";
-    board.width = Math.round(W * DPR); board.height = Math.round(H * DPR);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    DPR = window.devicePixelRatio || 1;
+    
+    board.style.width = W + "px";
+    board.style.height = H + "px";
+    board.width = Math.round(W * DPR);
+    board.height = Math.round(H * DPR);
+    
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    applyCfg(); render(); checkOrientation();
+    applyCfg();
+    render();
+    checkOrientation();
   };
 
   const getExamplePeek = () => {
@@ -198,12 +206,18 @@
       const el = document.getElementById(id);
       const c = cfg[panels[id]];
       if (el && c) {
-        if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
-        el.style.left = (c.x * W / 100) + "px";
-        el.style.top = (c.y * H / 100) + "px";
-        el.style.bottom = "auto";
-        el.style.transform = `translateX(-50%) scale(${c.s})`;
-        if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
+        if (id === "toolbar") {
+          el.style.display = c.visible ? "flex" : "none";
+          // Para a toolbar, deixamos o CSS fixed (bottom: 0 + safe-area) controlar a posição vertical
+          el.style.left = (c.x * W / 100) + "px";
+          el.style.transform = `translateX(-50%) scale(${c.s})`;
+        } else {
+          el.style.left = (c.x * W / 100) + "px";
+          el.style.top = (c.y * H / 100) + "px";
+          el.style.bottom = "auto";
+          el.style.transform = `translateX(-50%) scale(${c.s})`;
+          el.style.background = `rgba(255, 255, 255, ${c.o})`;
+        }
       }
     });
 
