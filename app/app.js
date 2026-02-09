@@ -47,6 +47,7 @@
     panelTrain: { x: 50, y: 10, s: 1, o: 0.6, label: "Desenhos de Números" },
     panelCards: { x: 50, y: 10, s: 1, o: 0.6, label: "Painel de Cartas" },
     inputType: "swipe",
+    yellowTarget: "top",
     peekDuration: 1.0
   }));
 
@@ -57,6 +58,7 @@
     if (cfg.visor.o === undefined) cfg.visor.o = 0.3;
     if (cfg.footer.o === undefined) cfg.footer.o = 0.3;
     if (cfg.inputType === undefined) cfg.inputType = "swipe";
+    if (cfg.yellowTarget === undefined) cfg.yellowTarget = "top";
     cfg.peekDuration = 1.0;
     if (!cfg.panelSetup) cfg.panelSetup = { x: 50, y: 10, s: 1, o: 0.6, label: "Painel de Configurações" };
     if (!cfg.panelTrain) cfg.panelTrain = { x: 50, y: 10, s: 1, o: 0.6, label: "Desenhos de Números" };
@@ -230,6 +232,8 @@
       if (s.dataset.color === "#F7C600") s.classList.toggle("swipe-active", mode === "swipe" && isYellowSwipe);
     });
     document.getElementById("inputCardsBtn").classList.toggle("active", cfg.inputType === "cards");
+    if (document.getElementById("yellowTargetTopBtn")) document.getElementById("yellowTargetTopBtn").classList.toggle("active", cfg.yellowTarget === "top");
+    if (document.getElementById("yellowTargetBottomBtn")) document.getElementById("yellowTargetBottomBtn").classList.toggle("active", cfg.yellowTarget === "bottom");
     document.getElementById("invertOrderBtn").textContent = cfg.visor.inverted ? "Ordem: 05 4H → 4H 05" : "Ordem: 4H 05 → 05 4H";
     document.getElementById("togglePeekStyleBtn").textContent = `Estilo: ${cfg.visor.peekStyle === 'cardOnly' ? 'Apenas Carta' : 'Carta + Posição'}`;
 
@@ -275,7 +279,12 @@
           else updateTap('red', 1, toggleSwipe);
         }
         if (c === "#F7C600") {
-          updateTap('yellow', 1, toggleYellowSwipe);
+          if (cfg.inputType === "cards") {
+            isYellowSwipe = true;
+            window.toggleCards(false);
+          } else {
+            updateTap('yellow', 1, toggleYellowSwipe);
+          }
         }
       };
     });
@@ -504,8 +513,15 @@
     
     if (isYellowSwipe) {
       if (card) {
-        tempTopCard = card;
-        visorL1.textContent = `TOPO: ${formatCard(card)}`;
+        if (cfg.yellowTarget === "bottom") {
+          const pos = posMap[card];
+          const topPos = (pos % 52) + 1;
+          tempTopCard = STACK[topPos - 1];
+          visorL1.textContent = `BOCA: ${formatCard(card)}`;
+        } else {
+          tempTopCard = card;
+          visorL1.textContent = `TOPO: ${formatCard(card)}`;
+        }
 
         color = "#111111";
         document.querySelectorAll(".swatch").forEach(s => {
@@ -590,7 +606,19 @@
   };
 
   window.toggleCards = (isAdjust = false) => {
-    if (mode === "cards") { mode = "draw"; cardsPanel.classList.add("hidden"); if (lastResult) { visor.style.opacity = cfg.visor.o; clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (mode === "draw") visor.style.opacity = 0; }, cfg.peekDuration * 1000); } else { visor.style.opacity = 0; } isCardsAdjustMode = false; }
+    if (mode === "cards") { 
+      mode = "draw"; 
+      cardsPanel.classList.add("hidden"); 
+      if (lastResult) { 
+        visor.style.opacity = cfg.visor.o; 
+        clearTimeout(peekTimer); 
+        peekTimer = setTimeout(() => { if (mode === "draw") visor.style.opacity = 0; }, cfg.peekDuration * 1000); 
+      } else { 
+        visor.style.opacity = 0; 
+      } 
+      isCardsAdjustMode = false; 
+      isYellowSwipe = false;
+    }
     else { 
       closeOtherPanels(); mode = "cards"; cardsPanel.classList.remove("hidden"); 
       isCardsAdjustMode = isAdjust;
@@ -629,9 +657,40 @@
     const suitEmoji = {"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[cardInputData.suit] || "";
     cardInputDisplay.textContent = `${cardInputData.rank}${suitEmoji} ${cardInputData.digits.padEnd(2, '-')}`;
     
-    if (cardInputData.rank && cardInputData.suit && cardInputData.digits.length === 2) {
-      processResult(cardInputData.rank + cardInputData.suit, parseInt(cardInputData.digits));
-      if (!isCardsAdjustMode) window.toggleCards();
+    if (isYellowSwipe) {
+      if (cardInputData.rank && cardInputData.suit) {
+        resolveCardInput(cardInputData.rank + cardInputData.suit);
+        if (!isCardsAdjustMode) window.toggleCards();
+      }
+    } else {
+      if (cardInputData.rank && cardInputData.suit && cardInputData.digits.length === 2) {
+        processResult(cardInputData.rank + cardInputData.suit, parseInt(cardInputData.digits));
+        if (!isCardsAdjustMode) window.toggleCards();
+      }
+    }
+  };
+
+  const resolveCardInput = (card) => {
+    if (isYellowSwipe) {
+      if (cfg.yellowTarget === "bottom") {
+        const pos = posMap[card];
+        const topPos = (pos % 52) + 1;
+        tempTopCard = STACK[topPos - 1];
+        visorL1.textContent = `BOCA: ${formatCard(card)}`;
+      } else {
+        tempTopCard = card;
+        visorL1.textContent = `TOPO: ${formatCard(card)}`;
+      }
+      color = "#111111";
+      document.querySelectorAll(".swatch").forEach(s => {
+        s.classList.toggle("active", s.dataset.color === "#111111");
+      });
+      
+      clearTimeout(peekTimer);
+      peekTimer = setTimeout(() => { 
+        if (mode !== "setup" && mode !== "cards" && mode !== "train") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); }
+        isYellowSwipe = false;
+      }, cfg.peekDuration * 1000);
     }
   };
 
@@ -650,6 +709,7 @@
   };
 
   window.setInputType = (type) => { cfg.inputType = type; applyCfg(); };
+  window.setYellowTarget = (target) => { cfg.yellowTarget = target; applyCfg(); };
 
   // Funções de Ajuste Aprimoradas
   const renderStepper = (parent, label, axis, targetKey, step) => {
