@@ -16,6 +16,7 @@
   let mode = "draw"; 
   let color = "#111111";
   let strokes = [];
+  let historyStrokes = [];
   let currentStroke = null;
   let drawPointerId = null;
   let eyePointerId = null;
@@ -305,13 +306,48 @@
     window.addEventListener("visibilitychange", resetInteractionState);
 
     document.getElementById("undoBtn").onclick = (e) => { e.stopPropagation(); strokes.pop(); render(); };
-    document.getElementById("clearBtn").onclick = (e) => { 
+    
+    const clearBtn = document.getElementById("clearBtn");
+    let trashHoldTimer = null;
+    let isTrashHolding = false;
+
+    const startTrashPeek = (e) => {
+      if (e.cancelable) e.preventDefault();
+      trashHoldTimer = setTimeout(() => {
+        isTrashHolding = true;
+        render(historyStrokes);
+      }, 150);
+    };
+
+    const stopTrashPeek = (e) => {
+      clearTimeout(trashHoldTimer);
+      if (isTrashHolding) {
+        isTrashHolding = false;
+        render();
+      }
+    };
+
+    clearBtn.addEventListener("mousedown", startTrashPeek);
+    window.addEventListener("mouseup", stopTrashPeek);
+    clearBtn.addEventListener("touchstart", startTrashPeek, { passive: true });
+    window.addEventListener("touchend", stopTrashPeek, { passive: true });
+
+    clearBtn.onclick = (e) => { 
+      if (isTrashHolding) return;
       e.stopPropagation(); 
+      if (strokes.length > 0) historyStrokes = [...strokes];
       strokes = []; 
       swipeData.arrows = []; 
       if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
       if (mode === "cards") window.toggleCards();
       tempTopCard = null;
+      
+      // Ativar botão preto
+      color = "#111111";
+      document.querySelectorAll(".swatch").forEach(b => {
+        b.classList.toggle("active", b.dataset.color === "#111111");
+      });
+
       resetInteractionState();
       applyCfg();
       render(); 
@@ -462,9 +498,9 @@
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.restore();
   };
 
-  const render = () => {
+  const render = (targetStrokes = strokes) => {
     ctx.clearRect(0, 0, board.width, board.height);
-    strokes.forEach(s => {
+    targetStrokes.forEach(s => {
       ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 6; ctx.strokeStyle = s.c;
       ctx.beginPath(); ctx.moveTo(s.p[0].x, s.p[0].y);
       for (let i = 1; i < s.p.length; i++) ctx.lineTo(s.p[i].x, s.p[i].y);
