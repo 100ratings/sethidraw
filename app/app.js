@@ -16,7 +16,6 @@
   let mode = "draw"; 
   let color = "#111111";
   let strokes = [];
-  let historyStrokes = [];
   let currentStroke = null;
   let drawPointerId = null;
   let eyePointerId = null;
@@ -48,7 +47,7 @@
     panelTrain: { x: 50, y: 10, s: 1, o: 0.6, label: "Desenhos de Números" },
     panelCards: { x: 50, y: 10, s: 1, o: 0.6, label: "Painel de Cartas" },
     inputType: "swipe",
-    yellowTarget: "top",
+    yellowTarget: "top", // 'top' ou 'bottom'
     peekDuration: 1.0
   }));
 
@@ -88,8 +87,7 @@
   const posMap = {}; STACK.forEach((c, i) => posMap[c] = i + 1);
 
   const init = () => {
-    window.addEventListener('resize', () => updateLayout(), { passive: true });
-    window.addEventListener('orientationchange', () => setTimeout(updateLayout, 50), { passive: true });
+    window.addEventListener('resize', onResize);
     updateLayout();
     bindEvents();
     createFloatingEyeBtn();
@@ -139,19 +137,15 @@
   };
 
   const updateLayout = () => {
-    W = window.innerWidth;
-    H = window.innerHeight;
-    DPR = window.devicePixelRatio || 1;
-    
-    board.style.width = W + "px";
-    board.style.height = H + "px";
-    board.width = Math.round(W * DPR);
-    board.height = Math.round(H * DPR);
-    
+    W = window.innerWidth; H = window.innerHeight; DPR = window.devicePixelRatio || 1;
+    board.width = W * DPR; board.height = H * DPR;
+    board.style.width = W + "px"; board.style.height = H + "px";
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    applyCfg();
-    render();
-    checkOrientation();
+    applyCfg(); render(); checkOrientation();
+  };
+
+  const onResize = () => {
+    setTimeout(updateLayout, 100);
   };
 
   const getExamplePeek = () => {
@@ -209,19 +203,11 @@
       const el = document.getElementById(id);
       const c = cfg[panels[id]];
       if (el && c) {
-        if (id === "toolbar") {
-          el.style.display = c.visible ? "flex" : "none";
-          el.style.left = (c.x * W / 100) + "px";
-          el.style.top = (c.y * H / 100) + "px";
-          el.style.bottom = "auto";
-          el.style.transform = `translateX(-50%) scale(${c.s})`;
-        } else {
-          el.style.left = (c.x * W / 100) + "px";
-          el.style.top = (c.y * H / 100) + "px";
-          el.style.bottom = "auto";
-          el.style.transform = `translateX(-50%) scale(${c.s})`;
-          el.style.background = `rgba(255, 255, 255, ${c.o})`;
-        }
+        if (id === "toolbar") el.style.display = c.visible ? "flex" : "none";
+        el.style.left = (c.x * W / 100) + "px";
+        el.style.top = (c.y * H / 100) + "px";
+        el.style.transform = `translateX(-50%) scale(${c.s})`;
+        if (id !== "toolbar") el.style.background = `rgba(255, 255, 255, ${c.o})`;
       }
     });
 
@@ -275,14 +261,14 @@
           if (tapCounts[key] >= limit) { action(); tapCounts[key] = 0; }
         };
 
-        if (c === "#FF3B30") {
-          if (cfg.inputType === "cards") window.toggleCards(false);
-          else updateTap('red', 1, toggleSwipe);
-        }
-        if (c === "#F7C600") {
-          if (cfg.inputType === "cards") {
-            isYellowSwipe = true;
-            window.toggleCards(false);
+        if (c === "#FF3B30" || c === "#F7C600") {
+          // Limpeza atômica: Limpa o canvas no exato momento do toque
+          strokes = []; 
+          render(); 
+          
+          if (c === "#FF3B30") {
+            if (cfg.inputType === "cards") window.toggleCards(false);
+            else updateTap('red', 1, toggleSwipe);
           } else {
             updateTap('yellow', 1, toggleYellowSwipe);
           }
@@ -306,48 +292,13 @@
     window.addEventListener("visibilitychange", resetInteractionState);
 
     document.getElementById("undoBtn").onclick = (e) => { e.stopPropagation(); strokes.pop(); render(); };
-    
-    const clearBtn = document.getElementById("clearBtn");
-    let trashHoldTimer = null;
-    let isTrashHolding = false;
-
-    const startTrashPeek = (e) => {
-      if (e.cancelable) e.preventDefault();
-      trashHoldTimer = setTimeout(() => {
-        isTrashHolding = true;
-        render(historyStrokes);
-      }, 150);
-    };
-
-    const stopTrashPeek = (e) => {
-      clearTimeout(trashHoldTimer);
-      if (isTrashHolding) {
-        isTrashHolding = false;
-        render();
-      }
-    };
-
-    clearBtn.addEventListener("mousedown", startTrashPeek);
-    window.addEventListener("mouseup", stopTrashPeek);
-    clearBtn.addEventListener("touchstart", startTrashPeek, { passive: true });
-    window.addEventListener("touchend", stopTrashPeek, { passive: true });
-
-    clearBtn.onclick = (e) => { 
-      if (isTrashHolding) return;
+    document.getElementById("clearBtn").onclick = (e) => { 
       e.stopPropagation(); 
-      if (strokes.length > 0) historyStrokes = [...strokes];
       strokes = []; 
       swipeData.arrows = []; 
       if (mode === "swipe") { mode = "draw"; visor.style.opacity = 0; isYellowSwipe = false; }
       if (mode === "cards") window.toggleCards();
       tempTopCard = null;
-      
-      // Ativar botão preto
-      color = "#111111";
-      document.querySelectorAll(".swatch").forEach(b => {
-        b.classList.toggle("active", b.dataset.color === "#111111");
-      });
-
       resetInteractionState();
       applyCfg();
       render(); 
@@ -395,21 +346,7 @@
     if (drawPointerId !== null) return; // Já tem um dedo desenhando
     if (eyePointerId !== null && e.pointerId === eyePointerId) return; // Este é o dedo do olho
 
-    // 4. Restrição de Área (Não desenhar abaixo dos botões da toolbar)
-    const toolbarEl = document.getElementById("toolbar");
-    if (toolbarEl && cfg.toolbar.visible) {
-      const swatchGroup = document.getElementById("swatchGroup");
-      if (swatchGroup) {
-        const rect = swatchGroup.getBoundingClientRect();
-        // Se o toque for abaixo da base dos botões, ignoramos o desenho
-        if (e.clientY >= rect.bottom) return;
-      } else {
-        const rect = toolbarEl.getBoundingClientRect();
-        if (e.clientY >= rect.top) return;
-      }
-    }
-
-    // 5. Iniciar Desenho
+    // 4. Iniciar Desenho
     drawPointerId = e.pointerId;
     try { board.setPointerCapture(e.pointerId); } catch(e){}
 
@@ -428,27 +365,6 @@
 
   window.onpointermove = (e) => {
     if (drawPointerId !== null && e.pointerId !== drawPointerId) return;
-
-    // Se estiver desenhando, verificar se entrou na área proibida (abaixo dos botões)
-    if (currentStroke) {
-      const toolbarEl = document.getElementById("toolbar");
-      if (toolbarEl && cfg.toolbar.visible) {
-        const swatchGroup = document.getElementById("swatchGroup");
-        if (swatchGroup) {
-          const rect = swatchGroup.getBoundingClientRect();
-          if (e.clientY >= rect.bottom) {
-            endPointer(e);
-            return;
-          }
-        } else {
-          const rect = toolbarEl.getBoundingClientRect();
-          if (e.clientY >= rect.top) {
-            endPointer(e);
-            return;
-          }
-        }
-      }
-    }
 
     if (dragData.active) {
       const dx = e.clientX - dragData.startX;
@@ -498,9 +414,9 @@
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); ctx.restore();
   };
 
-  const render = (targetStrokes = strokes) => {
+  const render = () => {
     ctx.clearRect(0, 0, board.width, board.height);
-    targetStrokes.forEach(s => {
+    strokes.forEach(s => {
       ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 6; ctx.strokeStyle = s.c;
       ctx.beginPath(); ctx.moveTo(s.p[0].x, s.p[0].y);
       for (let i = 1; i < s.p.length; i++) ctx.lineTo(s.p[i].x, s.p[i].y);
@@ -549,15 +465,8 @@
     
     if (isYellowSwipe) {
       if (card) {
-        if (cfg.yellowTarget === "bottom") {
-          const pos = posMap[card];
-          const topPos = (pos % 52) + 1;
-          tempTopCard = STACK[topPos - 1];
-          visorL1.textContent = `BOCA: ${formatCard(card)}`;
-        } else {
-          tempTopCard = card;
-          visorL1.textContent = `TOPO: ${formatCard(card)}`;
-        }
+        tempTopCard = card;
+        visorL1.textContent = `TOPO: ${formatCard(card)}`;
 
         color = "#111111";
         document.querySelectorAll(".swatch").forEach(s => {
@@ -642,19 +551,7 @@
   };
 
   window.toggleCards = (isAdjust = false) => {
-    if (mode === "cards") { 
-      mode = "draw"; 
-      cardsPanel.classList.add("hidden"); 
-      if (lastResult) { 
-        visor.style.opacity = cfg.visor.o; 
-        clearTimeout(peekTimer); 
-        peekTimer = setTimeout(() => { if (mode === "draw") visor.style.opacity = 0; }, cfg.peekDuration * 1000); 
-      } else { 
-        visor.style.opacity = 0; 
-      } 
-      isCardsAdjustMode = false; 
-      isYellowSwipe = false;
-    }
+    if (mode === "cards") { mode = "draw"; cardsPanel.classList.add("hidden"); if (lastResult) { visor.style.opacity = cfg.visor.o; clearTimeout(peekTimer); peekTimer = setTimeout(() => { if (mode === "draw") visor.style.opacity = 0; }, cfg.peekDuration * 1000); } else { visor.style.opacity = 0; } isCardsAdjustMode = false; }
     else { 
       closeOtherPanels(); mode = "cards"; cardsPanel.classList.remove("hidden"); 
       isCardsAdjustMode = isAdjust;
@@ -693,40 +590,9 @@
     const suitEmoji = {"S":"♠️","H":"♥️","C":"♣️","D":"♦️"}[cardInputData.suit] || "";
     cardInputDisplay.textContent = `${cardInputData.rank}${suitEmoji} ${cardInputData.digits.padEnd(2, '-')}`;
     
-    if (isYellowSwipe) {
-      if (cardInputData.rank && cardInputData.suit) {
-        resolveCardInput(cardInputData.rank + cardInputData.suit);
-        if (!isCardsAdjustMode) window.toggleCards();
-      }
-    } else {
-      if (cardInputData.rank && cardInputData.suit && cardInputData.digits.length === 2) {
-        processResult(cardInputData.rank + cardInputData.suit, parseInt(cardInputData.digits));
-        if (!isCardsAdjustMode) window.toggleCards();
-      }
-    }
-  };
-
-  const resolveCardInput = (card) => {
-    if (isYellowSwipe) {
-      if (cfg.yellowTarget === "bottom") {
-        const pos = posMap[card];
-        const topPos = (pos % 52) + 1;
-        tempTopCard = STACK[topPos - 1];
-        visorL1.textContent = `BOCA: ${formatCard(card)}`;
-      } else {
-        tempTopCard = card;
-        visorL1.textContent = `TOPO: ${formatCard(card)}`;
-      }
-      color = "#111111";
-      document.querySelectorAll(".swatch").forEach(s => {
-        s.classList.toggle("active", s.dataset.color === "#111111");
-      });
-      
-      clearTimeout(peekTimer);
-      peekTimer = setTimeout(() => { 
-        if (mode !== "setup" && mode !== "cards" && mode !== "train") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); }
-        isYellowSwipe = false;
-      }, cfg.peekDuration * 1000);
+    if (cardInputData.rank && cardInputData.suit && cardInputData.digits.length === 2) {
+      processResult(cardInputData.rank + cardInputData.suit, parseInt(cardInputData.digits));
+      if (!isCardsAdjustMode) window.toggleCards();
     }
   };
 
@@ -745,6 +611,7 @@
   };
 
   window.setInputType = (type) => { cfg.inputType = type; applyCfg(); };
+
   window.setYellowTarget = (target) => { cfg.yellowTarget = target; applyCfg(); };
 
   // Funções de Ajuste Aprimoradas
@@ -879,43 +746,15 @@
   window.adjustDirect = (axis, inputVal, targetKey = adjTarget) => {
     if (mode === 'train' && adjustMode === 'number') targetKey = 'number';
     let target = cfg[targetKey]; if (!target) return;
-    const val = parseFloat(inputVal);
-    if (isNaN(val)) return;
 
-    // Se estiver no modo treino ajustando o número, usa/cria o ajuste individual
     let isIndividual = false;
     if (targetKey === 'number' && mode === 'train') {
       const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
-      target = g?.cfg || JSON.parse(JSON.stringify(cfg.number)); // Herda do global se não existir
+      target = g?.cfg || JSON.parse(JSON.stringify(cfg.number));
       isIndividual = true;
     }
 
-    if (axis === "x" || axis === "y") {
-      target[axis] = val;
-    } else if (axis === "s") {
-      if (targetKey === "toolbar" || targetKey.startsWith("panel")) {
-        target.s = Math.max(0.5, Math.min(2.0, val));
-      } else if (targetKey === "number") {
-        const oldS = target.s;
-        target.s = val;
-        if (oldS > 0) target.h = target.h * (target.s / oldS);
-      } else if (targetKey === "visor" || targetKey === "footer") {
-        cfg.visor.s = Math.max(5, val);
-        cfg.footer.s = cfg.visor.s;
-      } else {
-        target.s = val;
-      }
-    } else if (axis === "h" && targetKey === "number") {
-      target.h = val;
-    } else if (axis === "o") {
-      const newVal = Math.max(0.05, Math.min(1.0, val));
-      if (targetKey === "visor" || targetKey === "footer") {
-        cfg.visor.o = newVal;
-        cfg.footer.o = newVal;
-      } else {
-        target.o = newVal;
-      }
-    }
+    target[axis] = inputVal;
 
     if (isIndividual) {
       const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || JSON.stringify({ s: [] }));
@@ -930,163 +769,166 @@
     if (mode === "train") loadTrain(trainNum);
   };
 
-  window.toggleEmoji = () => { cfg.visor.useEmoji = !cfg.visor.useEmoji; applyCfg(); };
-  window.togglePeekStyle = () => { cfg.visor.peekStyle = cfg.visor.peekStyle === "both" ? "cardOnly" : "both"; applyCfg(); };
-  window.toggleInvertOrder = () => { cfg.visor.inverted = !cfg.visor.inverted; applyCfg(); };
-  cfg.peekDuration = 1.0;
-
-  window.editTargetText = () => {
-    const target = cfg[adjTarget]; if (!target || adjTarget !== "footer") return;
-    const n = prompt(`Novo conteúdo para ${target.label}:`, target.text);
-    if (n !== null) { target.text = n; applyCfg(); }
-  };
-
-  window.openTrainPanel = () => { window.setTarget('panelTrain'); closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum || 1); window.setAdjustMode('panel'); applyCfg(); };
-  window.toggleTrain = () => { mode = "draw"; trainPanel.classList.add("hidden"); applyCfg(); render(); };
-  window.setAdjustMode = (m) => {
+  window.toggleMode = (m) => {
     adjustMode = m;
-    document.getElementById("modeNumBtn").classList.toggle("active", m === 'number');
-    document.getElementById("modePanelBtn").classList.toggle("active", m === 'panel');
+    document.getElementById("modeNumBtn").classList.toggle("active", m === "number");
+    document.getElementById("modePanelBtn").classList.toggle("active", m === "panel");
     updateAdjustUI();
   };
 
-  const loadTrain = (n) => { 
-    trainNum = Math.max(1, Math.min(52, n)); trainNumEl.textContent = trainNum; strokes = []; 
-    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
-    
-    // Prioridade: Ajuste individual do número (g.cfg) ou ajuste global (cfg.number)
-    const nCfg = g?.cfg || cfg.number;
-    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
-    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
-    
-    if (g?.s) g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
-    render(); 
-  };
-  window.trainStep = (d) => loadTrain(trainNum + d);
-  window.trainSave = () => {
-    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || "null");
-    const nCfg = g?.cfg || cfg.number;
-    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
-    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
-    const s = strokes.map(st => ({ p: st.p.map(p => ({ x: (p.x - rx)/rw, y: (p.y - ry)/rh })) }));
-    if (s.length > 0) { 
-      const newData = { s };
-      if (g?.cfg) newData.cfg = g.cfg; // Preserva o ajuste individual ao salvar o desenho
-      localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify(newData)); 
-      if (trainNum < 52) window.trainStep(1); else alert("Salvo!"); 
+  window.changeTrainNum = (d) => { trainNum = Math.max(1, Math.min(100, trainNum + d)); trainNumEl.textContent = trainNum; loadTrain(trainNum); updateAdjustUI(); };
+
+  const loadTrain = (n) => {
+    const g = JSON.parse(localStorage.getItem(`v6_g_${n}`) || "null");
+    strokes = [];
+    if (g?.s) {
+      const nCfg = g.cfg || cfg.number;
+      const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
+      const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
+      g.s.forEach(s => strokes.push({ c: "#111111", p: s.p.map(p => ({ x: rx + p.x * rw, y: ry + p.y * rh })) }));
     }
+    render();
   };
 
-  window.exportGlyphs = () => {
-    const backup = { cfg: cfg, glyphs: {} };
-    for (let i = 1; i <= 52; i++) { const g = localStorage.getItem(`v6_g_${i}`); if (g) backup.glyphs[i] = JSON.parse(g); }
-    const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a");
-    a.href = url; a.download = `sethi_draw_backup_${Date.now()}.json`; a.click(); URL.revokeObjectURL(url);
+  window.toggleTrain = () => {
+    if (mode === "train") { mode = "draw"; trainPanel.classList.add("hidden"); visor.style.opacity = 0; applyCfg(); }
+    else { closeOtherPanels(); mode = "train"; trainPanel.classList.remove("hidden"); loadTrain(trainNum); window.setTarget('panelTrain'); }
   };
 
-  window.importGlyphs = (event) => {
-    const file = event.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (data.cfg && data.glyphs) {
-          cfg = data.cfg; ensureCfg(); localStorage.setItem("mnem_v6_cfg", JSON.stringify(cfg));
-          Object.keys(data.glyphs).forEach(k => localStorage.setItem(`v6_g_${k}`, JSON.stringify(data.glyphs[k])));
-          applyCfg();
-        } else Object.keys(data).forEach(k => localStorage.setItem(`v6_g_${k}`, JSON.stringify(data[k])));
-        alert("Importado!"); if (mode === "train") loadTrain(trainNum); render();
-      } catch (err) { alert("Erro!"); }
+  window.saveTrain = () => {
+    const nCfg = cfg.number;
+    const rx = nCfg.x * W / 100, ry = nCfg.y * H / 100;
+    const rw = nCfg.s * W / 100, rh = nCfg.h * H / 100;
+    
+    // Pegar apenas os strokes feitos em modo treino (cor preta)
+    const trainStrokes = strokes.filter(s => s.c === "#111111");
+    const normalized = trainStrokes.map(s => ({ p: s.p.map(p => ({ x: (p.x - rx) / rw, y: (p.y - ry) / rh })) }));
+    
+    const g = JSON.parse(localStorage.getItem(`v6_g_${trainNum}`) || JSON.stringify({ s: [] }));
+    g.s = normalized;
+    localStorage.setItem(`v6_g_${trainNum}`, JSON.stringify(g));
+    alert(`Número ${trainNum} salvo!`);
+  };
+
+  window.clearTrain = () => { strokes = []; render(); };
+
+  window.toggleInvert = () => { cfg.visor.inverted = !cfg.visor.inverted; applyCfg(); };
+  window.toggleEmoji = () => { cfg.visor.useEmoji = !cfg.visor.useEmoji; applyCfg(); };
+  window.togglePeekStyle = () => { cfg.visor.peekStyle = cfg.visor.peekStyle === 'both' ? 'cardOnly' : 'both'; applyCfg(); };
+
+  const initEyeButton = (btnId, panelId) => {
+    const btn = document.getElementById(btnId);
+    const panel = document.getElementById(panelId);
+    if (!btn || !panel) return;
+
+    btn.onpointerdown = (e) => {
+      e.stopPropagation();
+      eyePointerId = e.pointerId;
+      panel.classList.add("transparent-peek");
+      try { btn.setPointerCapture(e.pointerId); } catch(e){}
     };
-    reader.readAsText(file);
+
+    const endEye = (e) => {
+      if (e.pointerId !== eyePointerId) return;
+      eyePointerId = null;
+      panel.classList.remove("transparent-peek");
+      try { btn.releasePointerCapture(e.pointerId); } catch(e){}
+    };
+
+    btn.onpointerup = endEye;
+    btn.onpointercancel = endEye;
   };
 
   const initBlueButtonPeek = () => {
-    const blueBtn = document.querySelector('.swatch[data-color="#007AFF"]');
-    if (!blueBtn) return;
+    const blueSwatch = document.querySelector('.swatch[data-color="#007AFF"]');
+    if (!blueSwatch) return;
+
     let holdTimer = null;
-    const startBluePeek = (e) => {
-      if (e.cancelable) e.preventDefault();
-      holdTimer = setTimeout(() => { blueBtn.dataset.isHolding = "true"; if (mode === "draw") { visor.style.opacity = cfg.visor.o; visorL1.textContent = lastResult || getExamplePeek(); } }, 150);
+    blueSwatch.onpointerdown = (e) => {
+      blueSwatch.dataset.isHolding = "false";
+      holdTimer = setTimeout(() => {
+        blueSwatch.dataset.isHolding = "true";
+        visor.style.opacity = cfg.visor.o;
+        visorL1.textContent = lastResult || getExamplePeek();
+      }, 200);
     };
-    const stopBluePeek = (e) => {
+
+    const endBlue = (e) => {
       clearTimeout(holdTimer);
-      if (blueBtn.dataset.isHolding === "true") { setTimeout(() => { blueBtn.dataset.isHolding = "false"; }, 50); if (mode === "draw") { visor.style.opacity = 0; setTimeout(() => { if (mode === "draw") visorL1.textContent = cfg.visor.text; }, 300); } }
+      if (blueSwatch.dataset.isHolding === "true") {
+        if (mode === "draw") visor.style.opacity = 0;
+        else applyCfg();
+      }
     };
-    blueBtn.addEventListener("mousedown", startBluePeek); window.addEventListener("mouseup", stopBluePeek);
-    blueBtn.addEventListener("touchstart", startBluePeek, { passive: true }); window.addEventListener("touchend", stopBluePeek, { passive: true });
+
+    blueSwatch.onpointerup = endBlue;
+    blueSwatch.onpointercancel = endBlue;
+    blueSwatch.onpointerleave = endBlue;
   };
 
-  // Cria o botão flutuante dinamicamente
   const createFloatingEyeBtn = () => {
-    floatingEyeBtn = document.createElement("div");
+    floatingEyeBtn = document.createElement("button");
     floatingEyeBtn.id = "floatingEyeBtn";
-    // Ícone de olho
+    floatingEyeBtn.className = "eye-button";
+    floatingEyeBtn.style.position = "fixed";
+    floatingEyeBtn.style.zIndex = "9999";
+    floatingEyeBtn.style.display = "none";
     floatingEyeBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
     document.body.appendChild(floatingEyeBtn);
 
-    // Posição inicial padrão
-    let floatX = W - 70;
-    let floatY = 100;
-    floatingEyeBtn.style.left = floatX + "px";
-    floatingEyeBtn.style.top = floatY + "px";
-
-    // Lógica de Arrastar do Botão Flutuante
-    let isDragging = false;
-    let startX, startY, initialLeft, initialTop;
-
-    floatingEyeBtn.addEventListener("pointerdown", (e) => {
+    floatingEyeBtn.onpointerdown = (e) => {
       e.stopPropagation();
-      isDragging = false;
-      floatingEyeBtn.setPointerCapture(e.pointerId);
-      startX = e.clientX;
-      startY = e.clientY;
-      initialLeft = parseFloat(floatingEyeBtn.style.left);
-      initialTop = parseFloat(floatingEyeBtn.style.top);
-    });
-
-    floatingEyeBtn.addEventListener("pointermove", (e) => {
-      if (e.buttons === 0) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) isDragging = true;
-      
-      floatingEyeBtn.style.left = (initialLeft + dx) + "px";
-      floatingEyeBtn.style.top = (initialTop + dy) + "px";
-    });
-
-    floatingEyeBtn.addEventListener("pointerup", (e) => {
-      floatingEyeBtn.releasePointerCapture(e.pointerId);
-      if (!isDragging) {
-        restorePanel();
+      eyePointerId = e.pointerId;
+      if (minimizedPanelId) {
+        const p = document.getElementById(minimizedPanelId);
+        if (p) p.classList.add("transparent-peek");
       }
-    });
+      try { floatingEyeBtn.setPointerCapture(e.pointerId); } catch(e){}
+    };
+
+    const endFloating = (e) => {
+      if (e.pointerId !== eyePointerId) return;
+      eyePointerId = null;
+      if (minimizedPanelId) {
+        const p = document.getElementById(minimizedPanelId);
+        if (p) p.classList.remove("transparent-peek");
+      }
+      try { floatingEyeBtn.releasePointerCapture(e.pointerId); } catch(e){}
+    };
+
+    floatingEyeBtn.onpointerup = endFloating;
+    floatingEyeBtn.onpointercancel = endFloating;
   };
 
-  const restorePanel = () => {
-    if (minimizedPanelId) {
-      const panel = document.getElementById(minimizedPanelId);
-      if (panel) panel.classList.remove("hidden");
-      floatingEyeBtn.style.display = "none";
+  window.toggleMinimize = (panelId) => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    if (minimizedPanelId === panelId) {
+      // Restaurar
+      panel.classList.remove("minimized");
       minimizedPanelId = null;
+      floatingEyeBtn.style.display = "none";
+    } else {
+      // Minimizar
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("minimized"));
+      panel.classList.add("minimized");
+      minimizedPanelId = panelId;
+      
+      // Posicionar botão flutuante
+      const rect = panel.getBoundingClientRect();
+      floatingEyeBtn.style.display = "flex";
+      floatingEyeBtn.style.left = (rect.left + rect.width / 2 - 20) + "px";
+      floatingEyeBtn.style.top = (rect.top + rect.height / 2 - 20) + "px";
     }
   };
 
-  const initEyeButton = (btnId, panelId) => {
-    const btn = document.getElementById(btnId); const panel = document.getElementById(panelId);
-    if (!btn || !panel) return;
-    
-    // Remove listeners antigos
-    btn.onpointerdown = null; btn.onpointerup = null; btn.onpointercancel = null;
-    
-    // Novo comportamento: Clique para minimizar
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      panel.classList.add("hidden");
-      minimizedPanelId = panelId;
-      if (floatingEyeBtn) floatingEyeBtn.style.display = "flex";
-    };
+  window.editFooterText = () => {
+    const newText = prompt("Digite o texto padrão do Peek de Apoio:", cfg.footer.text);
+    if (newText !== null) {
+      cfg.footer.text = newText;
+      applyCfg();
+    }
   };
 
   init();
